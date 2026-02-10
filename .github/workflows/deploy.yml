@@ -1,0 +1,36 @@
+name: Build and Deploy to rehydratedwater.com
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      - name: Get dependencies
+        run: flutter pub get
+      - name: Build web app
+        run: flutter build web --base-href "/mahjong/" --release
+      - name: Checkout target repo
+        uses: actions/checkout@v4
+        with:
+          repository: qizheYang/rehydratedwater.com
+          token: ${{ secrets.REHYDRATEDWATERCOM }}
+          path: target-repo
+      - name: Deploy to target repo
+        run: |
+          rm -rf target-repo/mahjong
+          cp -r build/web target-repo/mahjong
+          cd target-repo
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add mahjong
+          git commit -m "Auto-deploy mahjong from Mahjong_VibeCoding" || echo "No changes to commit"
+          git push
