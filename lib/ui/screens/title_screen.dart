@@ -6,7 +6,7 @@ import '../../providers/multiplayer_provider.dart';
 import 'lobby_screen.dart';
 
 /// Server URL — change for production deployment.
-const _serverUrl = 'ws://localhost:8080';
+const _serverUrl = 'wss://rehydratedwater.com/mahjong-ws';
 
 class TitleScreen extends ConsumerStatefulWidget {
   const TitleScreen({super.key});
