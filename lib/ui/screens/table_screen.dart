@@ -1,0 +1,506 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../engine/tile/tile.dart';
+import '../../i18n/strings.dart';
+import '../../models/table_state.dart';
+import '../../models/table_action.dart';
+import '../../providers/multiplayer_provider.dart';
+import '../table/multiplayer_table_view.dart';
+import '../hud/table_action_bar.dart';
+import '../dialogs/win_declaration_dialog.dart';
+import '../dialogs/exchange_dialog.dart';
+import '../dialogs/objection_banner.dart';
+
+class TableScreen extends ConsumerStatefulWidget {
+  const TableScreen({super.key});
+
+  @override
+  ConsumerState<TableScreen> createState() => _TableScreenState();
+}
+
+class _TableScreenState extends ConsumerState<TableScreen> {
+  /// Tiles selected for chi/pon/kan.
+  final Set<int> _selectedTileIds = {};
+
+  /// Current call mode (null = normal, "chi"/"pon"/"kan" = selecting tiles).
+  String? _callMode;
+
+  @override
+  Widget build(BuildContext context) {
+    final tableState = ref.watch(tableStateProvider);
+    final conn = ref.watch(multiplayerProvider);
+    final lang = ref.watch(langProvider);
+    final objection = ref.watch(objectionProvider);
+
+    if (tableState == null) {
+      return Scaffold(
+        body: Center(
+          child: Text(
+            tr('connecting', lang),
+            style: const TextStyle(color: Colors.white),
+          ),
+        ),
+        backgroundColor: const Color(0xFF0D3B0D),
+      );
+    }
+
+    final mySeat = conn.mySeat ?? 0;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF0D3B0D),
+      body: Stack(
+        children: [
+          // Main table view
+          MultiplayerTableView(
+            tableState: tableState,
+            mySeat: mySeat,
+            selectedTileIds: _selectedTileIds,
+            callMode: _callMode,
+            onTileTap: _onTileTap,
+            lang: lang,
+          ),
+
+          // Action bar at bottom
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: TableActionBar(
+              tableState: tableState,
+              mySeat: mySeat,
+              callMode: _callMode,
+              selectedTileIds: _selectedTileIds,
+              onAction: _onAction,
+              onCallMode: _onCallMode,
+              onCancelCall: _onCancelCall,
+              onConfirmCall: _onConfirmCall,
+              lang: lang,
+            ),
+          ),
+
+          // Win proposal overlay
+          if (tableState.pendingWin != null)
+            _buildWinProposalOverlay(tableState, mySeat, lang),
+
+          // Exchange proposal overlay
+          if (tableState.pendingExchange != null)
+            _buildExchangeOverlay(tableState, mySeat, lang),
+
+          // Objection banner
+          if (objection != null &&
+              DateTime.now().difference(objection.timestamp).inSeconds < 10)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: ObjectionBanner(
+                notification: objection,
+                lang: lang,
+                onDismiss: () {
+                  ref.read(objectionProvider.notifier).state = null;
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _onTileTap(Tile tile) {
+    if (_callMode != null) {
+      // In call mode: toggle tile selection
+      setState(() {
+        if (_selectedTileIds.contains(tile.id)) {
+          _selectedTileIds.remove(tile.id);
+        } else {
+          _selectedTileIds.add(tile.id);
+        }
+      });
+    } else {
+      // Normal mode: select/deselect for discard
+      setState(() {
+        if (_selectedTileIds.contains(tile.id)) {
+          // Double tap = discard
+          _selectedTileIds.clear();
+          ref
+              .read(multiplayerProvider.notifier)
+              .sendAction(TableAction.discard(tile.id));
+        } else {
+          _selectedTileIds.clear();
+          _selectedTileIds.add(tile.id);
+        }
+      });
+    }
+  }
+
+  void _onAction(String action) {
+    final mp = ref.read(multiplayerProvider.notifier);
+    final lang = ref.read(langProvider);
+
+    switch (action) {
+      case 'draw':
+        mp.sendAction(TableAction.draw());
+      case 'drawDeadWall':
+        mp.sendAction(TableAction.drawDeadWall());
+      case 'discard':
+        if (_selectedTileIds.length == 1) {
+          mp.sendAction(TableAction.discard(_selectedTileIds.first));
+          setState(() => _selectedTileIds.clear());
+        }
+      case 'riichi':
+        if (_selectedTileIds.length == 1) {
+          mp.sendAction(TableAction.riichi(_selectedTileIds.first));
+          setState(() => _selectedTileIds.clear());
+        }
+      case 'revealDora':
+        mp.sendAction(TableAction.revealDora());
+      case 'sortHand':
+        mp.sendAction(TableAction.sortHand());
+      case 'showHand':
+        mp.sendAction(TableAction.showHand());
+      case 'hideHand':
+        mp.sendAction(TableAction.hideHand());
+      case 'undoDiscard':
+        mp.sendAction(TableAction.undoDiscard());
+      case 'newRound':
+        _showNewRoundDialog(lang);
+      case 'win':
+        _showWinDialog(lang);
+      case 'objection':
+        _showObjectionDialog(lang);
+      case 'exchange':
+        _showExchangeDialog(lang);
+      case 'confirmWin':
+        mp.sendAction(TableAction.confirmWin());
+      case 'rejectWin':
+        mp.sendAction(TableAction.rejectWin());
+      case 'confirmExchange':
+        mp.sendAction(TableAction.exchangeConfirm());
+      case 'rejectExchange':
+        mp.sendAction(TableAction.exchangeReject());
+    }
+  }
+
+  void _onCallMode(String mode) {
+    setState(() {
+      _callMode = mode;
+      _selectedTileIds.clear();
+    });
+  }
+
+  void _onCancelCall() {
+    setState(() {
+      _callMode = null;
+      _selectedTileIds.clear();
+    });
+  }
+
+  void _onConfirmCall() {
+    final mp = ref.read(multiplayerProvider.notifier);
+    final ids = _selectedTileIds.toList();
+
+    switch (_callMode) {
+      case 'chi':
+        if (ids.length == 2) {
+          mp.sendAction(TableAction.chi(ids));
+        }
+      case 'pon':
+        if (ids.length == 2) {
+          mp.sendAction(TableAction.pon(ids));
+        }
+      case 'openKan':
+        if (ids.length == 3) {
+          mp.sendAction(TableAction.openKan(ids));
+        }
+      case 'closedKan':
+        if (ids.length == 4) {
+          mp.sendAction(TableAction.closedKan(ids));
+        }
+      case 'addedKan':
+        if (ids.length == 1) {
+          // Find which pon meld to add to
+          final tableState = ref.read(tableStateProvider);
+          final mySeat = ref.read(multiplayerProvider).mySeat ?? 0;
+          if (tableState != null) {
+            final melds = tableState.seats[mySeat].melds;
+            final tileKind = ids.first ~/ 4;
+            for (int i = 0; i < melds.length; i++) {
+              if (melds[i].type == 'pon' &&
+                  melds[i].tileIds.any((id) => id ~/ 4 == tileKind)) {
+                mp.sendAction(TableAction.addedKan(ids.first, i));
+                break;
+              }
+            }
+          }
+        }
+    }
+
+    setState(() {
+      _callMode = null;
+      _selectedTileIds.clear();
+    });
+  }
+
+  // ─── Dialogs ─────────────────────────────────────────────
+
+  void _showWinDialog(Lang lang) {
+    showDialog(
+      context: context,
+      builder: (ctx) => WinDeclarationDialog(
+        lang: lang,
+        onDeclare: (isTsumo, han, fu) {
+          Navigator.of(ctx).pop();
+          ref
+              .read(multiplayerProvider.notifier)
+              .sendAction(TableAction.declareWin(isTsumo, han, fu));
+        },
+      ),
+    );
+  }
+
+  void _showObjectionDialog(Lang lang) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A3A1A),
+        title: Text(tr('objection', lang),
+            style: const TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: tr('objectionPlaceholder', lang),
+            hintStyle: const TextStyle(color: Colors.white38),
+            enabledBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: Colors.white24),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(tr('cancel', lang),
+                style: const TextStyle(color: Colors.white38)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              ref
+                  .read(multiplayerProvider.notifier)
+                  .sendAction(TableAction.objection(controller.text));
+            },
+            child: Text(tr('confirm', lang),
+                style: const TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showExchangeDialog(Lang lang) {
+    final tableState = ref.read(tableStateProvider);
+    final mySeat = ref.read(multiplayerProvider).mySeat ?? 0;
+    if (tableState == null) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => ExchangeDialog(
+        lang: lang,
+        nicknames: tableState.nicknames,
+        mySeat: mySeat,
+        onPropose: (targetSeat, amount) {
+          Navigator.of(ctx).pop();
+          ref
+              .read(multiplayerProvider.notifier)
+              .sendAction(TableAction.exchangePropose(targetSeat, amount));
+        },
+      ),
+    );
+  }
+
+  void _showNewRoundDialog(Lang lang) {
+    final tableState = ref.read(tableStateProvider);
+    final keepDealer = tableState?.suggestKeepDealer ?? false;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A3A1A),
+        title: Text(tr('newRound', lang),
+            style: const TextStyle(color: Colors.white)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(tr('cancel', lang),
+                style: const TextStyle(color: Colors.white38)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              ref
+                  .read(multiplayerProvider.notifier)
+                  .sendAction(TableAction.newRound(keepDealer: true));
+            },
+            child: Text(tr('keepDealer', lang),
+                style: TextStyle(
+                    color: keepDealer ? Colors.amber : Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              ref
+                  .read(multiplayerProvider.notifier)
+                  .sendAction(TableAction.newRound(keepDealer: false));
+            },
+            child: Text(tr('rotateDealer', lang),
+                style: TextStyle(
+                    color: !keepDealer ? Colors.amber : Colors.white70)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Overlay builders ────────────────────────────────────
+
+  Widget _buildWinProposalOverlay(
+      TableState state, int mySeat, Lang lang) {
+    final proposal = state.pendingWin!;
+    final isMe = proposal.seatIndex == mySeat;
+    final windLabels = [
+      tr('east', lang),
+      tr('south', lang),
+      tr('west', lang),
+      tr('north', lang),
+    ];
+
+    return Positioned(
+      top: 60,
+      left: 20,
+      right: 20,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xEE1A1A3A),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.amber, width: 2),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '${windLabels[proposal.seatIndex]} ${state.nicknames[proposal.seatIndex]}',
+              style: const TextStyle(
+                  color: Colors.amber,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${tr('declareWin', lang)}: '
+              '${proposal.tierName} '
+              '${proposal.isTsumo ? tr("tsumo", lang) : tr("ron", lang)}',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${proposal.totalPoints}${tr("points", lang)}',
+              style: const TextStyle(
+                  color: Colors.amber,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${tr("confirm", lang)}: ${proposal.confirmed.length}/2  '
+              '${tr("reject", lang)}: ${proposal.rejected.length}/2',
+              style:
+                  const TextStyle(color: Colors.white60, fontSize: 12),
+            ),
+            if (!isMe) ...[
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => _onAction('confirmWin'),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green),
+                    child: Text(tr('confirm', lang)),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton(
+                    onPressed: () => _onAction('rejectWin'),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red),
+                    child: Text(tr('reject', lang)),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExchangeOverlay(
+      TableState state, int mySeat, Lang lang) {
+    final proposal = state.pendingExchange!;
+    final isTarget = proposal.toSeat == mySeat;
+
+    return Positioned(
+      top: 60,
+      left: 20,
+      right: 20,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xEE1A3A1A),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.greenAccent, width: 2),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '${state.nicknames[proposal.fromSeat]} → '
+              '${state.nicknames[proposal.toSeat]}',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${proposal.amount}${tr("points", lang)}',
+              style: const TextStyle(
+                  color: Colors.greenAccent,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold),
+            ),
+            if (isTarget) ...[
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => _onAction('confirmExchange'),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green),
+                    child: Text(tr('confirm', lang)),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton(
+                    onPressed: () => _onAction('rejectExchange'),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red),
+                    child: Text(tr('reject', lang)),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}

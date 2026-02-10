@@ -1,0 +1,407 @@
+import 'dart:math';
+
+import 'models.dart';
+import 'score_calculator.dart';
+
+/// Pure functions that apply actions to ServerState.
+/// No validation — this is a free-form virtual table.
+class TableLogic {
+  TableLogic._();
+
+  /// Shuffle wall and deal tiles to all players.
+  static void deal(ServerState state, Random random) {
+    final allIds = List.generate(136, (i) => i);
+    allIds.shuffle(random);
+
+    // Dead wall: last 14 tiles
+    state.deadWallTileIds = allIds.sublist(122);
+    state.liveTileIds = allIds.sublist(0, 122);
+    state.doraRevealed = 1;
+
+    // Reset seats
+    for (int i = 0; i < 4; i++) {
+      state.seats[i].reset();
+    }
+
+    // Deal 13 tiles each
+    for (int i = 0; i < 4; i++) {
+      for (int j = 0; j < 13; j++) {
+        state.seats[i].handTileIds.add(state.liveTileIds.removeAt(0));
+      }
+    }
+
+    // Dealer gets 14th tile
+    final dealerTile = state.liveTileIds.removeAt(0);
+    state.seats[state.dealerSeat].handTileIds.add(dealerTile);
+    state.seats[state.dealerSeat].justDrewTileId = dealerTile;
+
+    state.currentTurn = state.dealerSeat;
+    state.lastDiscardedBy = null;
+    state.lastDiscardedTileId = null;
+    state.gameStarted = true;
+    state.pendingWin = null;
+    state.pendingExchange = null;
+    state.suggestKeepDealer = false;
+    state.actionLog.clear();
+    state.addLog(state.dealerSeat, 'deal');
+  }
+
+  /// Draw a tile from the live wall.
+  static void draw(ServerState state, int seat) {
+    if (state.liveTileIds.isEmpty) return;
+    final tileId = state.liveTileIds.removeAt(0);
+    state.seats[seat].handTileIds.add(tileId);
+    state.seats[seat].justDrewTileId = tileId;
+    state.addLog(seat, 'draw');
+  }
+
+  /// Draw from dead wall (after kan).
+  static void drawDeadWall(ServerState state, int seat) {
+    if (state.deadWallTileIds.length <= 10) return;
+    final tileId = state.deadWallTileIds.removeLast();
+    state.seats[seat].handTileIds.add(tileId);
+    state.seats[seat].justDrewTileId = tileId;
+    // Replenish dead wall from live wall end
+    if (state.liveTileIds.isNotEmpty) {
+      state.deadWallTileIds.add(state.liveTileIds.removeLast());
+    }
+    state.addLog(seat, 'drawDeadWall');
+  }
+
+  /// Discard a tile from hand.
+  static void discard(ServerState state, int seat, int tileId) {
+    final seatData = state.seats[seat];
+    final isTsumogiri = seatData.justDrewTileId == tileId;
+    seatData.handTileIds.remove(tileId);
+    seatData.discards.add(DiscardEntry(
+      tileId: tileId,
+      isTsumogiri: isTsumogiri,
+    ));
+    seatData.justDrewTileId = null;
+    state.lastDiscardedBy = seat;
+    state.lastDiscardedTileId = tileId;
+    state.currentTurn = (seat + 1) % 4;
+    state.addLog(seat, 'discard', tileId: tileId);
+  }
+
+  /// Call chi: 2 hand tiles + last discard → sequence meld.
+  static void chi(ServerState state, int seat, List<int> handTileIds) {
+    final discardTileId = state.lastDiscardedTileId;
+    final discardedBy = state.lastDiscardedBy;
+    if (discardTileId == null || discardedBy == null) return;
+
+    // Remove discard from discarder's pool
+    state.seats[discardedBy].discards
+        .removeWhere((d) => d.tileId == discardTileId);
+
+    // Remove hand tiles
+    for (final id in handTileIds) {
+      state.seats[seat].handTileIds.remove(id);
+    }
+
+    // Create meld
+    final allTiles = [...handTileIds, discardTileId];
+    allTiles.sort((a, b) => (a ~/ 4).compareTo(b ~/ 4));
+    state.seats[seat].melds.add(MeldData(
+      type: 'chi',
+      tileIds: allTiles,
+      calledFrom: discardedBy,
+      calledTileId: discardTileId,
+    ));
+
+    state.lastDiscardedBy = null;
+    state.lastDiscardedTileId = null;
+    state.currentTurn = seat;
+    state.seats[seat].justDrewTileId = null;
+    state.addLog(seat, 'chi', tileId: discardTileId);
+  }
+
+  /// Call pon: 2 hand tiles + last discard → triplet meld.
+  static void pon(ServerState state, int seat, List<int> handTileIds) {
+    final discardTileId = state.lastDiscardedTileId;
+    final discardedBy = state.lastDiscardedBy;
+    if (discardTileId == null || discardedBy == null) return;
+
+    state.seats[discardedBy].discards
+        .removeWhere((d) => d.tileId == discardTileId);
+
+    for (final id in handTileIds) {
+      state.seats[seat].handTileIds.remove(id);
+    }
+
+    state.seats[seat].melds.add(MeldData(
+      type: 'pon',
+      tileIds: [...handTileIds, discardTileId],
+      calledFrom: discardedBy,
+      calledTileId: discardTileId,
+    ));
+
+    state.lastDiscardedBy = null;
+    state.lastDiscardedTileId = null;
+    state.currentTurn = seat;
+    state.seats[seat].justDrewTileId = null;
+    state.addLog(seat, 'pon', tileId: discardTileId);
+  }
+
+  /// Call open kan: 3 hand tiles + last discard → quad meld.
+  static void openKan(ServerState state, int seat, List<int> handTileIds) {
+    final discardTileId = state.lastDiscardedTileId;
+    final discardedBy = state.lastDiscardedBy;
+    if (discardTileId == null || discardedBy == null) return;
+
+    state.seats[discardedBy].discards
+        .removeWhere((d) => d.tileId == discardTileId);
+
+    for (final id in handTileIds) {
+      state.seats[seat].handTileIds.remove(id);
+    }
+
+    state.seats[seat].melds.add(MeldData(
+      type: 'openKan',
+      tileIds: [...handTileIds, discardTileId],
+      calledFrom: discardedBy,
+      calledTileId: discardTileId,
+    ));
+
+    state.lastDiscardedBy = null;
+    state.lastDiscardedTileId = null;
+    state.currentTurn = seat;
+    state.seats[seat].justDrewTileId = null;
+    state.addLog(seat, 'openKan', tileId: discardTileId);
+  }
+
+  /// Declare closed kan: 4 hand tiles → concealed quad meld.
+  static void closedKan(ServerState state, int seat, List<int> tileIds) {
+    for (final id in tileIds) {
+      state.seats[seat].handTileIds.remove(id);
+    }
+
+    state.seats[seat].melds.add(MeldData(
+      type: 'closedKan',
+      tileIds: tileIds,
+    ));
+
+    state.seats[seat].justDrewTileId = null;
+    state.addLog(seat, 'closedKan', tileId: tileIds.first);
+  }
+
+  /// Added kan: upgrade existing pon by adding 1 hand tile.
+  static void addedKan(
+      ServerState state, int seat, int tileId, int meldIndex) {
+    if (meldIndex >= state.seats[seat].melds.length) return;
+    final meld = state.seats[seat].melds[meldIndex];
+    if (meld.type != 'pon') return;
+
+    state.seats[seat].handTileIds.remove(tileId);
+    meld.type = 'addedKan';
+    meld.tileIds.add(tileId);
+
+    state.seats[seat].justDrewTileId = null;
+    state.addLog(seat, 'addedKan', tileId: tileId);
+  }
+
+  /// Declare riichi: permanently set riichi, deduct 1000 pts, discard tile.
+  static void riichi(ServerState state, int seat, int tileId) {
+    final seatData = state.seats[seat];
+    if (seatData.isRiichi) return; // already riichi
+
+    seatData.isRiichi = true;
+    state.scores[seat] -= 1000;
+    state.riichiSticksOnTable += 1;
+
+    // Discard with riichi flag
+    final isTsumogiri = seatData.justDrewTileId == tileId;
+    seatData.handTileIds.remove(tileId);
+    seatData.discards.add(DiscardEntry(
+      tileId: tileId,
+      isTsumogiri: isTsumogiri,
+      isRiichiDiscard: true,
+    ));
+    seatData.justDrewTileId = null;
+    state.lastDiscardedBy = seat;
+    state.lastDiscardedTileId = tileId;
+    state.currentTurn = (seat + 1) % 4;
+    state.addLog(seat, 'riichi', tileId: tileId);
+  }
+
+  /// Declare win: create proposal for others to confirm/reject.
+  static void declareWin(
+      ServerState state, int seat, bool isTsumo, int han, int fu) {
+    final tierName = ScoreCalculator.tierName(han, fu);
+    final loserSeat = isTsumo ? null : state.lastDiscardedBy;
+
+    final payments = ScoreCalculator.calculatePayments(
+      han: han,
+      fu: fu,
+      winnerSeat: seat,
+      dealerSeat: state.dealerSeat,
+      isTsumo: isTsumo,
+      loserSeat: loserSeat,
+      honbaCount: state.honbaCount,
+      riichiSticks: state.riichiSticksOnTable,
+    );
+
+    final total = payments[seat] ?? 0;
+
+    state.pendingWin = WinProposal(
+      seatIndex: seat,
+      isTsumo: isTsumo,
+      han: han,
+      fu: fu,
+      tierName: tierName,
+      totalPoints: total,
+      payments: payments,
+    );
+    state.addLog(seat, 'declareWin',
+        detail: '$tierName ${isTsumo ? "自摸" : "荣和"} $total点');
+  }
+
+  /// Confirm a pending win proposal.
+  static void confirmWin(ServerState state, int seat) {
+    final proposal = state.pendingWin;
+    if (proposal == null) return;
+    if (seat == proposal.seatIndex) return; // can't confirm own win
+
+    proposal.confirmed.add(seat);
+
+    // Need 2 out of 3 other players to confirm
+    if (proposal.confirmed.length >= 2) {
+      _applyWin(state);
+    }
+  }
+
+  /// Reject a pending win proposal.
+  static void rejectWin(ServerState state, int seat) {
+    final proposal = state.pendingWin;
+    if (proposal == null) return;
+    if (seat == proposal.seatIndex) return;
+
+    proposal.rejected.add(seat);
+
+    // If 2 reject, cancel the proposal
+    if (proposal.rejected.length >= 2) {
+      state.addLog(proposal.seatIndex, 'winRejected');
+      state.pendingWin = null;
+    }
+  }
+
+  static void _applyWin(ServerState state) {
+    final proposal = state.pendingWin!;
+    // Apply score changes
+    for (final entry in proposal.payments.entries) {
+      state.scores[entry.key] += entry.value;
+    }
+    // Clear riichi sticks (winner collected them)
+    state.riichiSticksOnTable = 0;
+    // Suggest keep dealer if winner is dealer
+    state.suggestKeepDealer = proposal.seatIndex == state.dealerSeat;
+    state.addLog(proposal.seatIndex, 'winConfirmed',
+        detail: proposal.tierName);
+    state.pendingWin = null;
+  }
+
+  /// Reveal next dora indicator.
+  static void revealDora(ServerState state) {
+    if (state.doraRevealed < 5) {
+      state.doraRevealed++;
+      state.addLog(-1, 'revealDora');
+    }
+  }
+
+  /// Sort hand tiles by kind.
+  static void sortHand(ServerState state, int seat) {
+    state.seats[seat].handTileIds.sort((a, b) {
+      final kindA = a ~/ 4;
+      final kindB = b ~/ 4;
+      if (kindA != kindB) return kindA.compareTo(kindB);
+      return a.compareTo(b);
+    });
+  }
+
+  /// Reveal hand to all players.
+  static void showHand(ServerState state, int seat) {
+    state.seats[seat].handRevealed = true;
+    state.addLog(seat, 'showHand');
+  }
+
+  /// Hide hand again.
+  static void hideHand(ServerState state, int seat) {
+    state.seats[seat].handRevealed = false;
+  }
+
+  /// Undo last discard (return to hand).
+  /// Riichi discards cannot be undone — riichi is irreversible.
+  static void undoDiscard(ServerState state, int seat) {
+    if (state.lastDiscardedBy != seat) return;
+    final seatData = state.seats[seat];
+    if (seatData.discards.isEmpty) return;
+
+    // Cannot undo a riichi discard — riichi is permanent
+    if (seatData.discards.last.isRiichiDiscard) return;
+
+    final lastDiscard = seatData.discards.removeLast();
+    seatData.handTileIds.add(lastDiscard.tileId);
+    state.lastDiscardedBy = null;
+    state.lastDiscardedTileId = null;
+    state.currentTurn = seat;
+    state.addLog(seat, 'undoDiscard', tileId: lastDiscard.tileId);
+  }
+
+  /// Start a new round.
+  static void newRound(
+      ServerState state, Random random, bool keepDealer) {
+    if (keepDealer) {
+      state.honbaCount += 1;
+    } else {
+      state.honbaCount = 0;
+      state.dealerSeat = (state.dealerSeat + 1) % 4;
+      state.roundNumber += 1;
+      if (state.roundNumber >= 4) {
+        state.roundNumber = 0;
+        state.roundWind = (state.roundWind + 1) % 4;
+      }
+    }
+    deal(state, random);
+  }
+
+  /// Propose point exchange.
+  static void exchangePropose(
+      ServerState state, int fromSeat, int toSeat, int amount) {
+    state.pendingExchange = ExchangeProposal(
+      fromSeat: fromSeat,
+      toSeat: toSeat,
+      amount: amount,
+    );
+    state.addLog(fromSeat, 'exchangePropose',
+        detail: '→ ${state.nicknames[toSeat]} $amount点');
+  }
+
+  /// Confirm pending exchange.
+  static void exchangeConfirm(ServerState state, int seat) {
+    final proposal = state.pendingExchange;
+    if (proposal == null) return;
+    if (seat != proposal.toSeat) return; // only target can confirm
+
+    state.scores[proposal.fromSeat] -= proposal.amount;
+    state.scores[proposal.toSeat] += proposal.amount;
+    state.addLog(seat, 'exchangeConfirmed',
+        detail: '${proposal.amount}点');
+    state.pendingExchange = null;
+  }
+
+  /// Reject pending exchange.
+  static void exchangeReject(ServerState state, int seat) {
+    final proposal = state.pendingExchange;
+    if (proposal == null) return;
+    if (seat != proposal.toSeat) return;
+
+    state.addLog(seat, 'exchangeRejected');
+    state.pendingExchange = null;
+  }
+
+  /// Manually adjust a seat's score.
+  static void adjustScore(ServerState state, int targetSeat, int delta) {
+    state.scores[targetSeat] += delta;
+    state.addLog(targetSeat, 'adjustScore', detail: '${delta > 0 ? "+" : ""}$delta');
+  }
+}

@@ -8,7 +8,7 @@ class MahjongApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Riichi Mahjong',
+      title: '麻雀',
       theme: MahjongTheme.theme,
       debugShowCheckedModeBanner: false,
       home: const TitleScreen(),

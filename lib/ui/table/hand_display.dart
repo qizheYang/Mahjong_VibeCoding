@@ -15,6 +15,9 @@ class HandDisplay extends StatelessWidget {
   final Tile? justDrew; // drawn tile shown with a gap
   final ValueChanged<Tile>? onTileTap;
 
+  /// Set of tile IDs to highlight (for call-mode multi-select).
+  final Set<int>? highlightedTileIds;
+
   const HandDisplay({
     super.key,
     required this.tiles,
@@ -23,6 +26,7 @@ class HandDisplay extends StatelessWidget {
     this.selectedTile,
     this.justDrew,
     this.onTileTap,
+    this.highlightedTileIds,
   });
 
   @override
@@ -64,7 +68,8 @@ class HandDisplay extends StatelessWidget {
               child: TileWidget(
                 tile: tile,
                 size: tileSize,
-                isSelected: tile == selectedTile,
+                isSelected: tile == selectedTile ||
+                    (highlightedTileIds?.contains(tile.id) ?? false),
                 onTap: onTileTap != null ? () => onTileTap!(tile) : null,
               ),
             )),
@@ -76,7 +81,8 @@ class HandDisplay extends StatelessWidget {
             child: TileWidget(
               tile: drawnTile,
               size: tileSize,
-              isSelected: drawnTile == selectedTile,
+              isSelected: drawnTile == selectedTile ||
+                  (highlightedTileIds?.contains(drawnTile.id) ?? false),
               onTap: onTileTap != null ? () => onTileTap!(drawnTile!) : null,
             ),
           ),
