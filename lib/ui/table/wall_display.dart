@@ -3,86 +3,72 @@ import 'package:flutter/material.dart';
 import '../tiles/tile_back.dart';
 import '../tiles/tile_size.dart';
 
-/// Displays the wall as 4 rows of face-down tile stacks surrounding the center.
-/// Each stack is 2 tiles high. Tiles are distributed evenly across 4 sides.
+/// Displays the wall as 4 sides of face-down tile stacks forming a border
+/// around the [child] widget. Each stack is 2 tiles high.
+/// Tiles are distributed evenly across 4 sides.
 class WallDisplay extends StatelessWidget {
   final int wallRemaining;
   final int deadWallCount;
+  final Widget child;
 
   const WallDisplay({
     super.key,
     required this.wallRemaining,
     required this.deadWallCount,
+    required this.child,
   });
 
   static const _stackSize = TileSize(width: 8, height: 11);
   static const _gap = 1.0;
 
+  /// Thickness of the wall border (height of one 2-tile stack).
+  double get _wallThickness => _stackSize.height * 2 + 1;
+
   @override
   Widget build(BuildContext context) {
-    // Total stacks = ceil(remaining / 2), split across 4 sides
     final totalStacks = (wallRemaining + 1) ~/ 2;
     final perSide = (totalStacks / 4).ceil().clamp(0, 17);
-    // Bottom gets the remainder
     final remainder = totalStacks - perSide * 3;
     final bottomStacks = remainder.clamp(0, 17);
+    final wt = _wallThickness;
 
-    final sideWidth = perSide * (_stackSize.width + _gap);
-    final sideHeight = perSide * (_stackSize.width + _gap);
+    return Stack(
+      children: [
+        // Child content padded to leave room for walls on all sides
+        Padding(
+          padding: EdgeInsets.all(wt + 2),
+          child: child,
+        ),
 
-    return SizedBox(
-      width: sideWidth + 40,
-      height: sideHeight + 40,
-      child: Stack(
-        children: [
-          // Top wall
-          Positioned(
-            top: 0,
-            left: 20,
-            right: 20,
-            child: Center(child: _horizontalWall(perSide)),
-          ),
-          // Bottom wall
-          Positioned(
-            bottom: 0,
-            left: 20,
-            right: 20,
-            child: Center(child: _horizontalWall(bottomStacks)),
-          ),
-          // Left wall
-          Positioned(
-            left: 0,
-            top: 20,
-            bottom: 20,
-            child: Center(child: _verticalWall(perSide)),
-          ),
-          // Right wall
-          Positioned(
-            right: 0,
-            top: 20,
-            bottom: 20,
-            child: Center(child: _verticalWall(perSide)),
-          ),
-          // Center: remaining count
-          Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0x40000000),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '$wallRemaining',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+        // Top wall (full width)
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: Center(child: _horizontalWall(perSide)),
+        ),
+        // Bottom wall (full width)
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: Center(child: _horizontalWall(bottomStacks)),
+        ),
+        // Left wall (between top and bottom walls)
+        Positioned(
+          left: 0,
+          top: wt,
+          bottom: wt,
+          child: Center(child: _verticalWall(perSide)),
+        ),
+        // Right wall (between top and bottom walls)
+        Positioned(
+          right: 0,
+          top: wt,
+          bottom: wt,
+          child: Center(child: _verticalWall(perSide)),
+        ),
+      ],
     );
   }
 

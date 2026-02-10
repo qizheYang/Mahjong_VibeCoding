@@ -110,54 +110,53 @@ class MultiplayerTableView extends StatelessWidget {
     const doraTileSize = TileSize(width: 18, height: 25);
     final poolWidth = 6 * (ds.width + ds.spacing);
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Wall display
-        WallDisplay(
-          wallRemaining: tableState.wallRemaining,
-          deadWallCount: tableState.deadWallCount,
-        ),
-        const SizedBox(height: 4),
+    // Wall forms a border around the center content
+    return WallDisplay(
+      wallRemaining: tableState.wallRemaining,
+      deadWallCount: tableState.deadWallCount,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Seat 2 (top) discards
+          _wrappedDiscardPool(_absoluteSeat(2), ds, poolWidth,
+              quarterTurns: 2),
+          const SizedBox(height: 2),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _wrappedDiscardPool(_absoluteSeat(3), ds, poolWidth,
+                  quarterTurns: 1),
+              const SizedBox(width: 2),
+              _buildCompass(),
+              const SizedBox(width: 2),
+              _wrappedDiscardPool(_absoluteSeat(1), ds, poolWidth,
+                  quarterTurns: 3),
+            ],
+          ),
+          const SizedBox(height: 2),
+          _wrappedDiscardPool(_absoluteSeat(0), ds, poolWidth),
+          const SizedBox(height: 6),
 
-        // Seat 2 (top) discards
-        _wrappedDiscardPool(_absoluteSeat(2), ds, poolWidth, quarterTurns: 2),
-        const SizedBox(height: 2),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _wrappedDiscardPool(_absoluteSeat(3), ds, poolWidth,
-                quarterTurns: 1),
-            const SizedBox(width: 2),
-            _buildCompass(),
-            const SizedBox(width: 2),
-            _wrappedDiscardPool(_absoluteSeat(1), ds, poolWidth,
-                quarterTurns: 3),
-          ],
-        ),
-        const SizedBox(height: 2),
-        _wrappedDiscardPool(_absoluteSeat(0), ds, poolWidth),
-        const SizedBox(height: 6),
-
-        // Dora indicators
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ...tableState.doraIndicators.map((tile) => Padding(
+          // Dora indicators
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ...tableState.doraIndicators.map((tile) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 1),
+                    child: TileWidget(tile: tile, size: doraTileSize),
+                  )),
+              // Unrevealed dora slots
+              ...List.generate(
+                5 - tableState.doraRevealed,
+                (_) => Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 1),
-                  child: TileWidget(tile: tile, size: doraTileSize),
-                )),
-            // Unrevealed dora slots
-            ...List.generate(
-              5 - tableState.doraRevealed,
-              (_) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1),
-                child: TileBack(size: doraTileSize),
+                  child: TileBack(size: doraTileSize),
+                ),
               ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 
