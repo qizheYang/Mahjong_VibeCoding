@@ -17,6 +17,7 @@ class ServerState {
   int riichiSticksOnTable = 0;
   bool gameStarted = false;
   bool suggestKeepDealer = false;
+  bool hasDrawnThisTurn = false;
   WinProposal? pendingWin;
   ExchangeProposal? pendingExchange;
   List<ActionLogEntry> actionLog = [];
@@ -41,6 +42,7 @@ class ServerState {
       'riichiSticksOnTable': riichiSticksOnTable,
       'gameStarted': gameStarted,
       'suggestKeepDealer': suggestKeepDealer,
+      'hasDrawnThisTurn': hasDrawnThisTurn,
       if (pendingWin != null) 'pendingWin': pendingWin!.toJson(),
       if (pendingExchange != null)
         'pendingExchange': pendingExchange!.toJson(),

@@ -39,6 +39,7 @@ class TableLogic {
     state.lastDiscardedBy = null;
     state.lastDiscardedTileId = null;
     state.gameStarted = true;
+    state.hasDrawnThisTurn = true; // dealer's 14th tile counts as draw
     state.pendingWin = null;
     state.pendingExchange = null;
     state.suggestKeepDealer = false;
@@ -46,25 +47,25 @@ class TableLogic {
     state.addLog(state.dealerSeat, 'deal');
   }
 
-  /// Draw a tile from the live wall.
+  /// Draw a tile from the live wall (front).
   static void draw(ServerState state, int seat) {
     if (state.liveTileIds.isEmpty) return;
+    if (state.hasDrawnThisTurn) return; // can only draw once per turn
     final tileId = state.liveTileIds.removeAt(0);
     state.seats[seat].handTileIds.add(tileId);
     state.seats[seat].justDrewTileId = tileId;
+    state.hasDrawnThisTurn = true;
     state.addLog(seat, 'draw');
   }
 
-  /// Draw from dead wall (after kan).
+  /// Draw from the back of the live wall (after kan).
   static void drawDeadWall(ServerState state, int seat) {
-    if (state.deadWallTileIds.length <= 10) return;
-    final tileId = state.deadWallTileIds.removeLast();
+    if (state.liveTileIds.isEmpty) return;
+    if (state.hasDrawnThisTurn) return; // can only draw once per turn
+    final tileId = state.liveTileIds.removeLast();
     state.seats[seat].handTileIds.add(tileId);
     state.seats[seat].justDrewTileId = tileId;
-    // Replenish dead wall from live wall end
-    if (state.liveTileIds.isNotEmpty) {
-      state.deadWallTileIds.add(state.liveTileIds.removeLast());
-    }
+    state.hasDrawnThisTurn = true;
     state.addLog(seat, 'drawDeadWall');
   }
 
@@ -81,6 +82,7 @@ class TableLogic {
     state.lastDiscardedBy = seat;
     state.lastDiscardedTileId = tileId;
     state.currentTurn = (seat + 1) % 4;
+    state.hasDrawnThisTurn = false; // next player hasn't drawn yet
     state.addLog(seat, 'discard', tileId: tileId);
   }
 
@@ -112,6 +114,7 @@ class TableLogic {
     state.lastDiscardedBy = null;
     state.lastDiscardedTileId = null;
     state.currentTurn = seat;
+    state.hasDrawnThisTurn = true; // call acts as draw
     state.seats[seat].justDrewTileId = null;
     state.addLog(seat, 'chi', tileId: discardTileId);
   }
@@ -139,6 +142,7 @@ class TableLogic {
     state.lastDiscardedBy = null;
     state.lastDiscardedTileId = null;
     state.currentTurn = seat;
+    state.hasDrawnThisTurn = true; // call acts as draw
     state.seats[seat].justDrewTileId = null;
     state.addLog(seat, 'pon', tileId: discardTileId);
   }
@@ -166,6 +170,7 @@ class TableLogic {
     state.lastDiscardedBy = null;
     state.lastDiscardedTileId = null;
     state.currentTurn = seat;
+    state.hasDrawnThisTurn = false; // needs replacement draw after kan
     state.seats[seat].justDrewTileId = null;
     state.addLog(seat, 'openKan', tileId: discardTileId);
   }
@@ -182,6 +187,7 @@ class TableLogic {
     ));
 
     state.seats[seat].justDrewTileId = null;
+    state.hasDrawnThisTurn = false; // needs replacement draw after kan
     state.addLog(seat, 'closedKan', tileId: tileIds.first);
   }
 
@@ -197,6 +203,7 @@ class TableLogic {
     meld.tileIds.add(tileId);
 
     state.seats[seat].justDrewTileId = null;
+    state.hasDrawnThisTurn = false; // needs replacement draw after kan
     state.addLog(seat, 'addedKan', tileId: tileId);
   }
 
@@ -221,6 +228,7 @@ class TableLogic {
     state.lastDiscardedBy = seat;
     state.lastDiscardedTileId = tileId;
     state.currentTurn = (seat + 1) % 4;
+    state.hasDrawnThisTurn = false; // next player hasn't drawn yet
     state.addLog(seat, 'riichi', tileId: tileId);
   }
 
@@ -344,6 +352,7 @@ class TableLogic {
     state.lastDiscardedBy = null;
     state.lastDiscardedTileId = null;
     state.currentTurn = seat;
+    state.hasDrawnThisTurn = true; // tile is back in hand, already "drawn"
     state.addLog(seat, 'undoDiscard', tileId: lastDiscard.tileId);
   }
 

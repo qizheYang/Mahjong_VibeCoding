@@ -133,6 +133,14 @@ const Map<String, Map<Lang, String>> _strings = {
     Lang.ja: '送点確認待ち',
   },
 
+  // Toggles
+  'autoDraw': {Lang.zh: '自动摸牌', Lang.en: 'Auto Draw', Lang.ja: '自動ツモ'},
+  'autoDiscard': {
+    Lang.zh: '自动打牌',
+    Lang.en: 'Auto Discard',
+    Lang.ja: '自動打牌',
+  },
+
   // Misc
   'connecting': {
     Lang.zh: '连接中...',

@@ -20,6 +20,7 @@ class TableState {
   final int riichiSticksOnTable;
   final bool gameStarted;
   final bool suggestKeepDealer;
+  final bool hasDrawnThisTurn;
   final WinProposal? pendingWin;
   final ExchangeProposal? pendingExchange;
   final List<ActionLogEntry> actionLog;
@@ -42,6 +43,7 @@ class TableState {
     required this.riichiSticksOnTable,
     required this.gameStarted,
     required this.suggestKeepDealer,
+    required this.hasDrawnThisTurn,
     this.pendingWin,
     this.pendingExchange,
     required this.actionLog,
@@ -69,6 +71,7 @@ class TableState {
       riichiSticksOnTable: json['riichiSticksOnTable'] as int,
       gameStarted: json['gameStarted'] as bool,
       suggestKeepDealer: json['suggestKeepDealer'] as bool? ?? false,
+      hasDrawnThisTurn: json['hasDrawnThisTurn'] as bool? ?? false,
       pendingWin: json['pendingWin'] != null
           ? WinProposal.fromJson(json['pendingWin'] as Map<String, dynamic>)
           : null,

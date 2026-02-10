@@ -14,6 +14,10 @@ class TableActionBar extends StatelessWidget {
   final VoidCallback onCancelCall;
   final VoidCallback onConfirmCall;
   final Lang lang;
+  final bool autoDraw;
+  final bool autoDiscard;
+  final ValueChanged<bool> onAutoDrawChanged;
+  final ValueChanged<bool> onAutoDiscardChanged;
 
   const TableActionBar({
     super.key,
@@ -26,6 +30,10 @@ class TableActionBar extends StatelessWidget {
     required this.onCancelCall,
     required this.onConfirmCall,
     required this.lang,
+    required this.autoDraw,
+    required this.autoDiscard,
+    required this.onAutoDrawChanged,
+    required this.onAutoDiscardChanged,
   });
 
   @override
@@ -41,6 +49,8 @@ class TableActionBar extends StatelessWidget {
     final seat = tableState.seats[mySeat];
     final hasSelection = selectedTileIds.isNotEmpty;
     final isMyTurn = tableState.currentTurn == mySeat;
+    final hasDrawn = tableState.hasDrawnThisTurn;
+    final canDraw = isMyTurn && !hasDrawn;
     final lastBy = tableState.lastDiscardedBy;
     final prevPlayer = (mySeat - 1 + 4) % 4;
     final canChi = lastBy == prevPlayer;
@@ -60,10 +70,10 @@ class TableActionBar extends StatelessWidget {
               child: Row(
                 children: [
                   _actionBtn(tr('draw', lang), 'draw', Colors.blue,
-                      enabled: isMyTurn),
+                      enabled: canDraw),
                   _actionBtn(tr('drawDeadWall', lang), 'drawDeadWall',
                       Colors.blueGrey,
-                      enabled: isMyTurn),
+                      enabled: canDraw),
                   _actionBtn(
                     tr('discard', lang),
                     'discard',
@@ -110,6 +120,11 @@ class TableActionBar extends StatelessWidget {
                       tr('exchange', lang), 'exchange', Colors.greenAccent),
                   _actionBtn(
                       tr('newRound', lang), 'newRound', Colors.white70),
+                  const SizedBox(width: 6),
+                  _toggleBtn(tr('autoDraw', lang), autoDraw,
+                      onAutoDrawChanged),
+                  _toggleBtn(tr('autoDiscard', lang), autoDiscard,
+                      onAutoDiscardChanged),
                 ],
               ),
             ),
@@ -216,6 +231,30 @@ class TableActionBar extends StatelessWidget {
             ),
           ),
           child: Text(label, style: const TextStyle(fontSize: 12)),
+        ),
+      ),
+    );
+  }
+
+  Widget _toggleBtn(
+      String label, bool value, ValueChanged<bool> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: SizedBox(
+        height: 32,
+        child: ElevatedButton(
+          onPressed: () => onChanged(!value),
+          style: ElevatedButton.styleFrom(
+            backgroundColor:
+                value ? Colors.amber.withValues(alpha: 0.8) : const Color(0xFF2A2A2A),
+            foregroundColor: value ? Colors.black : Colors.white60,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            minimumSize: Size.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
+          child: Text(label, style: const TextStyle(fontSize: 11)),
         ),
       ),
     );

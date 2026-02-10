@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../tiles/tile_back.dart';
 import '../tiles/tile_size.dart';
 
-/// Displays the wall as a compact indicator showing remaining tile count.
-/// Uses a simplified 4-sided representation.
+/// Displays the wall as 4 rows of face-down tile stacks surrounding the center.
+/// Each stack is 2 tiles high. Tiles are distributed evenly across 4 sides.
 class WallDisplay extends StatelessWidget {
   final int wallRemaining;
   final int deadWallCount;
@@ -15,71 +15,116 @@ class WallDisplay extends StatelessWidget {
     required this.deadWallCount,
   });
 
+  static const _stackSize = TileSize(width: 8, height: 11);
+  static const _gap = 1.0;
+
   @override
   Widget build(BuildContext context) {
-    // Show a compact wall representation
-    // Total live stacks = ceil(wallRemaining / 2)
-    // Distribute across 4 sides
+    // Total stacks = ceil(remaining / 2), split across 4 sides
     final totalStacks = (wallRemaining + 1) ~/ 2;
-    final stacksPerSide = (totalStacks / 4).ceil().clamp(0, 17);
+    final perSide = (totalStacks / 4).ceil().clamp(0, 17);
+    // Bottom gets the remainder
+    final remainder = totalStacks - perSide * 3;
+    final bottomStacks = remainder.clamp(0, 17);
 
-    const stackSize = TileSize(width: 8, height: 11);
-    const gap = 1.0;
-
-    final sideWidth = stacksPerSide * (stackSize.width + gap);
+    final sideWidth = perSide * (_stackSize.width + _gap);
+    final sideHeight = perSide * (_stackSize.width + _gap);
 
     return SizedBox(
       width: sideWidth + 40,
-      height: 28,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
+      height: sideHeight + 40,
+      child: Stack(
         children: [
-          // Left indicator
-          _wallSideCompact(stacksPerSide, stackSize, gap),
-          const SizedBox(width: 8),
-          // Count text
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: const Color(0x40000000),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              '$wallRemaining',
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+          // Top wall
+          Positioned(
+            top: 0,
+            left: 20,
+            right: 20,
+            child: Center(child: _horizontalWall(perSide)),
+          ),
+          // Bottom wall
+          Positioned(
+            bottom: 0,
+            left: 20,
+            right: 20,
+            child: Center(child: _horizontalWall(bottomStacks)),
+          ),
+          // Left wall
+          Positioned(
+            left: 0,
+            top: 20,
+            bottom: 20,
+            child: Center(child: _verticalWall(perSide)),
+          ),
+          // Right wall
+          Positioned(
+            right: 0,
+            top: 20,
+            bottom: 20,
+            child: Center(child: _verticalWall(perSide)),
+          ),
+          // Center: remaining count
+          Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0x40000000),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '$wallRemaining',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          // Right indicator
-          _wallSideCompact(stacksPerSide, stackSize, gap),
         ],
       ),
     );
   }
 
-  Widget _wallSideCompact(int stacks, TileSize size, double gap) {
+  Widget _horizontalWall(int stacks) {
     if (stacks <= 0) return const SizedBox.shrink();
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(
-        stacks.clamp(0, 8), // show max 8 per side for compactness
+        stacks,
         (_) => Padding(
-          padding: EdgeInsets.symmetric(horizontal: gap / 2),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TileBack(size: size),
-              const SizedBox(height: 1),
-              TileBack(size: size),
-            ],
+          padding: EdgeInsets.symmetric(horizontal: _gap / 2),
+          child: _tileStack(),
+        ),
+      ),
+    );
+  }
+
+  Widget _verticalWall(int stacks) {
+    if (stacks <= 0) return const SizedBox.shrink();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(
+        stacks,
+        (_) => Padding(
+          padding: EdgeInsets.symmetric(vertical: _gap / 2),
+          child: RotatedBox(
+            quarterTurns: 1,
+            child: _tileStack(),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _tileStack() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TileBack(size: _stackSize),
+        const SizedBox(height: 1),
+        TileBack(size: _stackSize),
+      ],
     );
   }
 }

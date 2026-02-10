@@ -32,6 +32,37 @@ class _TableScreenState extends ConsumerState<TableScreen> {
     final conn = ref.watch(multiplayerProvider);
     final lang = ref.watch(langProvider);
     final objection = ref.watch(objectionProvider);
+    final autoDraw = ref.watch(autoDrawProvider);
+    final autoDiscard = ref.watch(autoDiscardProvider);
+
+    // Auto-draw: when it's my turn and I haven't drawn yet
+    if (tableState != null && autoDraw) {
+      final mySeatIdx = conn.mySeat ?? 0;
+      if (tableState.currentTurn == mySeatIdx &&
+          !tableState.hasDrawnThisTurn) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref
+              .read(multiplayerProvider.notifier)
+              .sendAction(TableAction.draw());
+        });
+      }
+    }
+
+    // Auto-discard: when I drew a tile and auto-discard or riichi is active
+    if (tableState != null) {
+      final mySeatIdx = conn.mySeat ?? 0;
+      final seat = tableState.seats[mySeatIdx];
+      final justDrew = seat.justDrewTileId;
+      if (justDrew != null &&
+          tableState.currentTurn == mySeatIdx &&
+          (autoDiscard || seat.isRiichi)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref
+              .read(multiplayerProvider.notifier)
+              .sendAction(TableAction.discard(justDrew));
+        });
+      }
+    }
 
     if (tableState == null) {
       return Scaffold(
@@ -76,6 +107,12 @@ class _TableScreenState extends ConsumerState<TableScreen> {
               onCancelCall: _onCancelCall,
               onConfirmCall: _onConfirmCall,
               lang: lang,
+              autoDraw: autoDraw,
+              autoDiscard: autoDiscard,
+              onAutoDrawChanged: (v) =>
+                  ref.read(autoDrawProvider.notifier).state = v,
+              onAutoDiscardChanged: (v) =>
+                  ref.read(autoDiscardProvider.notifier).state = v,
             ),
           ),
 

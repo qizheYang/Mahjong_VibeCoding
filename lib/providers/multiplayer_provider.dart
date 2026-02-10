@@ -215,3 +215,7 @@ final lobbyProvider = StateProvider<LobbyState>((ref) => const LobbyState());
 final tableStateProvider = StateProvider<TableState?>((ref) => null);
 
 final objectionProvider = StateProvider<ObjectionNotification?>((ref) => null);
+
+final autoDrawProvider = StateProvider<bool>((ref) => false);
+
+final autoDiscardProvider = StateProvider<bool>((ref) => false);
