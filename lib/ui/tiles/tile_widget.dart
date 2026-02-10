@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../engine/tile/tile.dart';
 import '../../engine/tile/tile_type.dart';
-import '../theme/tile_colors.dart';
 import 'tile_size.dart';
 
-/// Renders a single mahjong tile face-up.
+/// Renders a single mahjong tile face-up using real tile graphics.
 class TileWidget extends StatelessWidget {
   final Tile tile;
   final TileSize size;
@@ -21,27 +20,44 @@ class TileWidget extends StatelessWidget {
     this.onTap,
   });
 
+  /// Map a Tile to its asset filename.
+  static String tileAsset(Tile tile) {
+    if (tile.isRedDora) {
+      // Red fives: 0m, 0p, 0s
+      final suit = switch (tile.type) {
+        TileType.man => 'm',
+        TileType.pin => 'p',
+        TileType.sou => 's',
+        _ => 'm', // shouldn't happen
+      };
+      return 'assets/tiles/0$suit.png';
+    }
+    switch (tile.type) {
+      case TileType.man:
+        return 'assets/tiles/${tile.number}m.png';
+      case TileType.pin:
+        return 'assets/tiles/${tile.number}p.png';
+      case TileType.sou:
+        return 'assets/tiles/${tile.number}s.png';
+      case TileType.wind:
+        return 'assets/tiles/${tile.number}z.png';
+      case TileType.dragon:
+        return 'assets/tiles/${tile.number + 4}z.png';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final label = TileColors.tileLabel(tile.type, tile.number);
-    final kanji = TileColors.suitKanji(tile.type);
-    final textColor = tile.type == TileType.dragon
-        ? TileColors.dragonColor(tile.number)
-        : TileColors.textColor(tile.type);
-    final bgColor = tile.isRedDora ? TileColors.redDoraBg : TileColors.tileFace;
-
     Widget tileWidget = GestureDetector(
       onTap: onTap,
       child: Container(
         width: size.width,
         height: size.height,
         decoration: BoxDecoration(
-          color: isSelected ? TileColors.tileSelected : bgColor,
           borderRadius: BorderRadius.circular(size.borderRadius),
-          border: Border.all(
-            color: TileColors.tileBorder,
-            width: 1,
-          ),
+          border: isSelected
+              ? Border.all(color: Colors.amber, width: 2)
+              : null,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.3),
@@ -50,40 +66,14 @@ class TileWidget extends StatelessWidget {
             ),
           ],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (tile.type == TileType.dragon && tile.number == 1)
-              // Haku: empty white tile with border
-              Container(
-                width: size.width * 0.5,
-                height: size.width * 0.5,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade400, width: 1.5),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              )
-            else ...[
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: size.fontSize,
-                  fontWeight: FontWeight.bold,
-                  color: tile.isRedDora ? Colors.red : textColor,
-                  height: 1.1,
-                ),
-              ),
-              if (kanji.isNotEmpty)
-                Text(
-                  kanji,
-                  style: TextStyle(
-                    fontSize: size.smallFontSize,
-                    color: tile.isRedDora ? Colors.red : textColor,
-                    height: 1.0,
-                  ),
-                ),
-            ],
-          ],
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(size.borderRadius),
+          child: Image.asset(
+            tileAsset(tile),
+            width: size.width,
+            height: size.height,
+            fit: BoxFit.fill,
+          ),
         ),
       ),
     );

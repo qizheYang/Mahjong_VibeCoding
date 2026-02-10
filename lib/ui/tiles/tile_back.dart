@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import '../theme/tile_colors.dart';
 import 'tile_size.dart';
 
-/// Renders a face-down mahjong tile.
+/// Renders a face-down mahjong tile using the real back image.
 class TileBack extends StatelessWidget {
   final TileSize size;
 
@@ -14,19 +13,23 @@ class TileBack extends StatelessWidget {
       width: size.width,
       height: size.height,
       decoration: BoxDecoration(
-        color: TileColors.tileBack,
         borderRadius: BorderRadius.circular(size.borderRadius),
-        border: Border.all(
-          color: TileColors.tileBorder,
-          width: 1,
-        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 2,
-            offset: const Offset(1, 1),
+            blurRadius: 1,
+            offset: const Offset(0.5, 0.5),
           ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(size.borderRadius),
+        child: Image.asset(
+          'assets/tiles/back.png',
+          width: size.width,
+          height: size.height,
+          fit: BoxFit.fill,
+        ),
       ),
     );
   }

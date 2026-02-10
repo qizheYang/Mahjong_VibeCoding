@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,11 +22,20 @@ class TableScreen extends ConsumerStatefulWidget {
 }
 
 class _TableScreenState extends ConsumerState<TableScreen> {
-  /// Tiles selected for chi/pon/kan.
   final Set<int> _selectedTileIds = {};
-
-  /// Current call mode (null = normal, "chi"/"pon"/"kan" = selecting tiles).
   String? _callMode;
+
+  /// Timer for auto dora flip + dead wall draw after kan.
+  Timer? _kanTimer;
+
+  /// Tracks the last action log length to detect new actions.
+  int _lastActionLogLength = 0;
+
+  @override
+  void dispose() {
+    _kanTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +75,17 @@ class _TableScreenState extends ConsumerState<TableScreen> {
       }
     }
 
+    // Detect kan actions and start auto-timer for dora flip + dead wall draw
+    if (tableState != null) {
+      _detectKanAndAutoProcess(tableState, conn.mySeat ?? 0);
+    }
+
+    // Cancel kan timer on objection
+    if (objection != null && _kanTimer != null) {
+      _kanTimer?.cancel();
+      _kanTimer = null;
+    }
+
     if (tableState == null) {
       return Scaffold(
         body: Center(
@@ -80,73 +102,111 @@ class _TableScreenState extends ConsumerState<TableScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D3B0D),
-      body: Stack(
+      body: Column(
         children: [
-          // Main table view
-          MultiplayerTableView(
+          // Main table view (fills available space)
+          Expanded(
+            child: Stack(
+              children: [
+                MultiplayerTableView(
+                  tableState: tableState,
+                  mySeat: mySeat,
+                  selectedTileIds: _selectedTileIds,
+                  callMode: _callMode,
+                  onTileTap: _onTileTap,
+                  lang: lang,
+                  autoDraw: autoDraw,
+                  autoDiscard: autoDiscard,
+                  onAutoDrawChanged: (v) =>
+                      ref.read(autoDrawProvider.notifier).state = v,
+                  onAutoDiscardChanged: (v) =>
+                      ref.read(autoDiscardProvider.notifier).state = v,
+                ),
+
+                // Win proposal overlay
+                if (tableState.pendingWin != null)
+                  _buildWinProposalOverlay(tableState, mySeat, lang),
+
+                // Exchange proposal overlay
+                if (tableState.pendingExchange != null)
+                  _buildExchangeOverlay(tableState, mySeat, lang),
+
+                // Objection banner
+                if (objection != null &&
+                    DateTime.now().difference(objection.timestamp).inSeconds <
+                        10)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: ObjectionBanner(
+                      notification: objection,
+                      lang: lang,
+                      onDismiss: () {
+                        ref.read(objectionProvider.notifier).state = null;
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // Action bar at the bottom (no overlap with table)
+          TableActionBar(
             tableState: tableState,
             mySeat: mySeat,
-            selectedTileIds: _selectedTileIds,
             callMode: _callMode,
-            onTileTap: _onTileTap,
+            selectedTileIds: _selectedTileIds,
+            onAction: _onAction,
+            onCallMode: _onCallMode,
+            onCancelCall: _onCancelCall,
+            onConfirmCall: _onConfirmCall,
             lang: lang,
           ),
-
-          // Action bar at bottom
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: TableActionBar(
-              tableState: tableState,
-              mySeat: mySeat,
-              callMode: _callMode,
-              selectedTileIds: _selectedTileIds,
-              onAction: _onAction,
-              onCallMode: _onCallMode,
-              onCancelCall: _onCancelCall,
-              onConfirmCall: _onConfirmCall,
-              lang: lang,
-              autoDraw: autoDraw,
-              autoDiscard: autoDiscard,
-              onAutoDrawChanged: (v) =>
-                  ref.read(autoDrawProvider.notifier).state = v,
-              onAutoDiscardChanged: (v) =>
-                  ref.read(autoDiscardProvider.notifier).state = v,
-            ),
-          ),
-
-          // Win proposal overlay
-          if (tableState.pendingWin != null)
-            _buildWinProposalOverlay(tableState, mySeat, lang),
-
-          // Exchange proposal overlay
-          if (tableState.pendingExchange != null)
-            _buildExchangeOverlay(tableState, mySeat, lang),
-
-          // Objection banner
-          if (objection != null &&
-              DateTime.now().difference(objection.timestamp).inSeconds < 10)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: ObjectionBanner(
-                notification: objection,
-                lang: lang,
-                onDismiss: () {
-                  ref.read(objectionProvider.notifier).state = null;
-                },
-              ),
-            ),
         ],
       ),
     );
   }
 
+  /// Detect when a kan action happens and auto-send revealDora + drawDeadWall
+  /// after 5 seconds, unless an objection is raised.
+  void _detectKanAndAutoProcess(TableState state, int mySeat) {
+    final logLen = state.actionLog.length;
+    if (logLen <= _lastActionLogLength) {
+      _lastActionLogLength = logLen;
+      return;
+    }
+
+    // Check new entries for kan actions by me
+    for (int i = _lastActionLogLength; i < logLen; i++) {
+      final entry = state.actionLog[i];
+      if (['openKan', 'closedKan', 'addedKan'].contains(entry.action) &&
+          entry.seat == mySeat) {
+        _startKanTimer();
+        break;
+      }
+    }
+    _lastActionLogLength = logLen;
+  }
+
+  void _startKanTimer() {
+    _kanTimer?.cancel();
+    _kanTimer = Timer(const Duration(seconds: 5), () {
+      if (!mounted) return;
+      final mp = ref.read(multiplayerProvider.notifier);
+      // Auto reveal dora
+      mp.sendAction(TableAction.revealDora());
+      // Auto draw from dead wall (short delay to let server process dora first)
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (!mounted) return;
+        mp.sendAction(TableAction.drawDeadWall());
+      });
+      _kanTimer = null;
+    });
+  }
+
   void _onTileTap(Tile tile) {
     if (_callMode != null) {
-      // In call mode: toggle tile selection
       setState(() {
         if (_selectedTileIds.contains(tile.id)) {
           _selectedTileIds.remove(tile.id);
@@ -155,10 +215,8 @@ class _TableScreenState extends ConsumerState<TableScreen> {
         }
       });
     } else {
-      // Normal mode: select/deselect for discard
       setState(() {
         if (_selectedTileIds.contains(tile.id)) {
-          // Double tap = discard
           _selectedTileIds.clear();
           ref
               .read(multiplayerProvider.notifier)
@@ -178,8 +236,6 @@ class _TableScreenState extends ConsumerState<TableScreen> {
     switch (action) {
       case 'draw':
         mp.sendAction(TableAction.draw());
-      case 'drawDeadWall':
-        mp.sendAction(TableAction.drawDeadWall());
       case 'discard':
         if (_selectedTileIds.length == 1) {
           mp.sendAction(TableAction.discard(_selectedTileIds.first));
@@ -190,8 +246,6 @@ class _TableScreenState extends ConsumerState<TableScreen> {
           mp.sendAction(TableAction.riichi(_selectedTileIds.first));
           setState(() => _selectedTileIds.clear());
         }
-      case 'revealDora':
-        mp.sendAction(TableAction.revealDora());
       case 'sortHand':
         mp.sendAction(TableAction.sortHand());
       case 'showHand':
@@ -205,6 +259,8 @@ class _TableScreenState extends ConsumerState<TableScreen> {
       case 'win':
         _showWinDialog(lang);
       case 'objection':
+        _kanTimer?.cancel();
+        _kanTimer = null;
         _showObjectionDialog(lang);
       case 'exchange':
         _showExchangeDialog(lang);
@@ -256,7 +312,6 @@ class _TableScreenState extends ConsumerState<TableScreen> {
         }
       case 'addedKan':
         if (ids.length == 1) {
-          // Find which pon meld to add to
           final tableState = ref.read(tableStateProvider);
           final mySeat = ref.read(multiplayerProvider).mySeat ?? 0;
           if (tableState != null) {

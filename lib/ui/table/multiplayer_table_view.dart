@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../engine/tile/tile.dart';
 import '../../i18n/strings.dart';
 import '../../models/table_state.dart';
-import '../tiles/tile_widget.dart';
 import '../tiles/tile_back.dart';
 import '../tiles/tile_size.dart';
 import 'discard_pool.dart';
@@ -12,6 +11,13 @@ import 'meld_display.dart';
 import 'wall_display.dart';
 
 /// Main table view for the multiplayer free-form game.
+///
+/// Layout (no overlaps):
+/// ```
+///   [top opponent hand]
+///   [left opp] [square table] [right opp]
+///   [my hand]
+/// ```
 class MultiplayerTableView extends StatelessWidget {
   final TableState tableState;
   final int mySeat;
@@ -19,6 +25,10 @@ class MultiplayerTableView extends StatelessWidget {
   final String? callMode;
   final ValueChanged<Tile>? onTileTap;
   final Lang lang;
+  final bool autoDraw;
+  final bool autoDiscard;
+  final ValueChanged<bool> onAutoDrawChanged;
+  final ValueChanged<bool> onAutoDiscardChanged;
 
   const MultiplayerTableView({
     super.key,
@@ -28,17 +38,14 @@ class MultiplayerTableView extends StatelessWidget {
     this.callMode,
     this.onTileTap,
     required this.lang,
+    required this.autoDraw,
+    required this.autoDiscard,
+    required this.onAutoDrawChanged,
+    required this.onAutoDiscardChanged,
   });
 
-  /// Map absolute seat index to relative position (0=bottom, 1=right, 2=top, 3=left).
-  int _relativePosition(int seatIndex) {
-    return (seatIndex - mySeat + 4) % 4;
-  }
-
-  /// Map relative position back to absolute seat index.
-  int _absoluteSeat(int relativePos) {
-    return (relativePos + mySeat) % 4;
-  }
+  int _relativePosition(int seatIndex) => (seatIndex - mySeat + 4) % 4;
+  int _absoluteSeat(int relativePos) => (relativePos + mySeat) % 4;
 
   @override
   Widget build(BuildContext context) {
@@ -46,56 +53,61 @@ class MultiplayerTableView extends StatelessWidget {
     final discardSize = TileSize.small(context);
     final opponentSize = TileSize.tiny(context);
 
-    return Stack(
+    return Column(
       children: [
-        // Center area: wall + compass + 4 discard pools + dora
-        Center(
-          child: _buildCenterArea(discardSize),
-        ),
-
-        // Top opponent (relative pos 2)
-        Positioned(
-          top: 4,
-          left: 0,
-          right: 0,
+        // Top opponent hand
+        SizedBox(
+          height: opponentSize.height + 12,
           child: Center(
-            child: _buildOpponentRow(_absoluteSeat(2), opponentSize, discardSize),
+            child: _buildOpponentRow(
+                _absoluteSeat(2), opponentSize, discardSize),
           ),
         ),
 
-        // Left opponent (relative pos 3)
-        Positioned(
-          left: 4,
-          top: 0,
-          bottom: 0,
-          child: Center(
-            child: RotatedBox(
-              quarterTurns: 1,
-              child: _buildOpponentRow(
-                  _absoluteSeat(3), opponentSize, discardSize),
-            ),
+        // Middle: left opponent | square table | right opponent
+        Expanded(
+          child: Row(
+            children: [
+              // Left opponent (rotated, draws bottom-to-top)
+              SizedBox(
+                width: opponentSize.height + 12,
+                child: Center(
+                  child: RotatedBox(
+                    quarterTurns: 1,
+                    child: _buildOpponentRow(
+                        _absoluteSeat(3), opponentSize, discardSize),
+                  ),
+                ),
+              ),
+
+              // Square table in center
+              Expanded(
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: 1.0,
+                    child: _buildTable(discardSize),
+                  ),
+                ),
+              ),
+
+              // Right opponent (rotated)
+              SizedBox(
+                width: opponentSize.height + 12,
+                child: Center(
+                  child: RotatedBox(
+                    quarterTurns: 3,
+                    child: _buildOpponentRow(
+                        _absoluteSeat(1), opponentSize, discardSize),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
 
-        // Right opponent (relative pos 1)
-        Positioned(
-          right: 4,
-          top: 0,
-          bottom: 0,
-          child: Center(
-            child: RotatedBox(
-              quarterTurns: 3,
-              child: _buildOpponentRow(
-                  _absoluteSeat(1), opponentSize, discardSize),
-            ),
-          ),
-        ),
-
-        // My hand + melds (bottom)
-        Positioned(
-          bottom: 52,
-          left: 0,
-          right: 0,
+        // My hand at bottom
+        SizedBox(
+          height: handSize.height + 16,
           child: Center(
             child: _buildMyRow(handSize, discardSize),
           ),
@@ -104,58 +116,39 @@ class MultiplayerTableView extends StatelessWidget {
     );
   }
 
-  // ─── Center area ───────────────────────────────────────────
+  // ─── Square table (wall + discards + compass) ─────────────
 
-  Widget _buildCenterArea(TileSize ds) {
-    const doraTileSize = TileSize(width: 18, height: 25);
+  Widget _buildTable(TileSize ds) {
     final poolWidth = 6 * (ds.width + ds.spacing);
 
-    // Wall forms a border around the center content
     return WallDisplay(
       wallRemaining: tableState.wallRemaining,
       deadWallCount: tableState.deadWallCount,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Seat 2 (top) discards
-          _wrappedDiscardPool(_absoluteSeat(2), ds, poolWidth,
-              quarterTurns: 2),
-          const SizedBox(height: 2),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _wrappedDiscardPool(_absoluteSeat(3), ds, poolWidth,
-                  quarterTurns: 1),
-              const SizedBox(width: 2),
-              _buildCompass(),
-              const SizedBox(width: 2),
-              _wrappedDiscardPool(_absoluteSeat(1), ds, poolWidth,
-                  quarterTurns: 3),
-            ],
-          ),
-          const SizedBox(height: 2),
-          _wrappedDiscardPool(_absoluteSeat(0), ds, poolWidth),
-          const SizedBox(height: 6),
-
-          // Dora indicators
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ...tableState.doraIndicators.map((tile) => Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 1),
-                    child: TileWidget(tile: tile, size: doraTileSize),
-                  )),
-              // Unrevealed dora slots
-              ...List.generate(
-                5 - tableState.doraRevealed,
-                (_) => Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 1),
-                  child: TileBack(size: doraTileSize),
-                ),
-              ),
-            ],
-          ),
-        ],
+      doraIndicators: tableState.doraIndicators,
+      doraRevealed: tableState.doraRevealed,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _wrappedDiscardPool(
+                _absoluteSeat(2), ds, poolWidth, quarterTurns: 2),
+            const SizedBox(height: 2),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _wrappedDiscardPool(
+                    _absoluteSeat(3), ds, poolWidth, quarterTurns: 1),
+                const SizedBox(width: 2),
+                _buildCompass(),
+                const SizedBox(width: 2),
+                _wrappedDiscardPool(
+                    _absoluteSeat(1), ds, poolWidth, quarterTurns: 3),
+              ],
+            ),
+            const SizedBox(height: 2),
+            _wrappedDiscardPool(_absoluteSeat(0), ds, poolWidth),
+          ],
+        ),
       ),
     );
   }
@@ -164,8 +157,7 @@ class MultiplayerTableView extends StatelessWidget {
       {int quarterTurns = 0}) {
     final seat = tableState.seats[seatIndex];
     final discardTiles = seat.discards.map((d) => Tile(d.tileId)).toList();
-    final riichiIdx =
-        seat.discards.indexWhere((d) => d.isRiichiDiscard);
+    final riichiIdx = seat.discards.indexWhere((d) => d.isRiichiDiscard);
     final minRowH = ds.height + ds.spacing;
 
     Widget pool = ConstrainedBox(
@@ -207,7 +199,6 @@ class MultiplayerTableView extends StatelessWidget {
       child: Stack(
         children: [
           _currentTurnHighlight(_relativePosition(currentTurn)),
-
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -229,8 +220,8 @@ class MultiplayerTableView extends StatelessWidget {
                 if (tableState.honbaCount > 0)
                   Text(
                     '${tableState.honbaCount}${tr("honba", lang)}',
-                    style: const TextStyle(
-                        color: Colors.white54, fontSize: 10),
+                    style:
+                        const TextStyle(color: Colors.white54, fontSize: 10),
                   ),
                 if (tableState.riichiSticksOnTable > 0)
                   Row(
@@ -255,12 +246,10 @@ class MultiplayerTableView extends StatelessWidget {
               ],
             ),
           ),
-
-          // Seat labels on compass edges
-          _compassLabel(0), // bottom = me
-          _compassLabel(1), // right
-          _compassLabel(2), // top
-          _compassLabel(3), // left
+          _compassLabel(0),
+          _compassLabel(1),
+          _compassLabel(2),
+          _compassLabel(3),
         ],
       ),
     );
@@ -274,7 +263,6 @@ class MultiplayerTableView extends StatelessWidget {
       tr('west', lang),
       tr('north', lang),
     ];
-    // Seat wind based on dealer position
     final seatWind = (seatIndex - tableState.dealerSeat + 4) % 4;
     final wind = windNames[seatWind];
     final score = tableState.scores[seatIndex];
@@ -290,44 +278,25 @@ class MultiplayerTableView extends StatelessWidget {
     );
 
     switch (relativePos) {
-      case 0: // bottom
+      case 0:
         return Positioned(
-          bottom: 2,
-          left: 0,
-          right: 0,
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                text,
-              ],
-            ),
-          ),
-        );
-      case 2: // top
-        return Positioned(
-          top: 2,
-          left: 0,
-          right: 0,
+          bottom: 2, left: 0, right: 0,
           child: Center(child: text),
         );
-      case 3: // left
+      case 2:
         return Positioned(
-          left: 2,
-          top: 22,
-          bottom: 22,
-          child: Center(
-            child: RotatedBox(quarterTurns: 1, child: text),
-          ),
+          top: 2, left: 0, right: 0,
+          child: Center(child: text),
         );
-      case 1: // right
+      case 3:
         return Positioned(
-          right: 2,
-          top: 22,
-          bottom: 22,
-          child: Center(
-            child: RotatedBox(quarterTurns: 3, child: text),
-          ),
+          left: 2, top: 22, bottom: 22,
+          child: Center(child: RotatedBox(quarterTurns: 1, child: text)),
+        );
+      case 1:
+        return Positioned(
+          right: 2, top: 22, bottom: 22,
+          child: Center(child: RotatedBox(quarterTurns: 3, child: text)),
         );
       default:
         return const SizedBox.shrink();
@@ -339,32 +308,20 @@ class MultiplayerTableView extends StatelessWidget {
     switch (relativePos) {
       case 0:
         return Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: Container(height: 18, color: glow),
-        );
+            bottom: 0, left: 0, right: 0,
+            child: Container(height: 18, color: glow));
       case 2:
         return Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: Container(height: 18, color: glow),
-        );
+            top: 0, left: 0, right: 0,
+            child: Container(height: 18, color: glow));
       case 3:
         return Positioned(
-          left: 0,
-          top: 0,
-          bottom: 0,
-          child: Container(width: 18, color: glow),
-        );
+            left: 0, top: 0, bottom: 0,
+            child: Container(width: 18, color: glow));
       case 1:
         return Positioned(
-          right: 0,
-          top: 0,
-          bottom: 0,
-          child: Container(width: 18, color: glow),
-        );
+            right: 0, top: 0, bottom: 0,
+            child: Container(width: 18, color: glow));
       default:
         return const SizedBox.shrink();
     }
@@ -378,47 +335,28 @@ class MultiplayerTableView extends StatelessWidget {
     final hasTiles = seat.handTileIds != null && seat.handTileIds!.isNotEmpty;
     final melds = seat.melds.map((m) => m.toMeld()).toList();
 
-    return Column(
+    return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (hasTiles)
-              // Revealed hand
-              HandDisplay(
-                tiles: seat.handTiles!,
-                faceUp: true,
-                tileSize: handSize,
-              )
-            else
-              // Face-down hand
-              ...List.generate(
-                seat.handCount,
-                (_) => Padding(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: handSize.spacing / 2),
-                  child: TileBack(size: handSize),
-                ),
-              ),
-            if (melds.isNotEmpty) ...[
-              SizedBox(width: handSize.width * 0.3),
-              MeldDisplay(melds: melds, tileSize: meldSize),
-            ],
-          ],
-        ),
-        if (seat.isRiichi)
-          Padding(
-            padding: const EdgeInsets.only(top: 3),
-            child: Container(
-              width: 30,
-              height: 5,
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(2),
-              ),
+        if (hasTiles)
+          HandDisplay(
+            tiles: seat.handTiles!,
+            faceUp: true,
+            tileSize: handSize,
+          )
+        else
+          ...List.generate(
+            seat.handCount,
+            (_) => Padding(
+              padding:
+                  EdgeInsets.symmetric(horizontal: handSize.spacing / 2),
+              child: TileBack(size: handSize),
             ),
           ),
+        if (melds.isNotEmpty) ...[
+          SizedBox(width: handSize.width * 0.3),
+          MeldDisplay(melds: melds, tileSize: meldSize),
+        ],
       ],
     );
   }
@@ -428,54 +366,63 @@ class MultiplayerTableView extends StatelessWidget {
     final handTiles = seat.handTiles ?? [];
     final melds = seat.melds.map((m) => m.toMeld()).toList();
 
-    // Build selection set as Tiles for the HandDisplay
     Tile? selectedTile;
     if (selectedTileIds.length == 1 && callMode == null) {
       selectedTile = Tile(selectedTileIds.first);
     }
 
-    return Column(
+    return Row(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        if (seat.isRiichi)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 3),
-            child: Container(
-              width: 30,
-              height: 5,
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-        Row(
+        // Auto toggles to the left of hand
+        Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            // Hand tiles with call-mode multi-select
-            _buildMyHand(handTiles, seat.justDrew, handSize, selectedTile),
-            if (melds.isNotEmpty) ...[
-              SizedBox(width: handSize.width * 0.3),
-              MeldDisplay(melds: melds, tileSize: meldSize),
-            ],
+            _autoToggle(tr('autoDraw', lang), autoDraw, onAutoDrawChanged),
+            const SizedBox(height: 2),
+            _autoToggle(
+                tr('autoDiscard', lang), autoDiscard, onAutoDiscardChanged),
           ],
         ),
+        const SizedBox(width: 6),
+        HandDisplay(
+          tiles: handTiles,
+          faceUp: true,
+          tileSize: handSize,
+          selectedTile: selectedTile,
+          justDrew: seat.justDrew,
+          onTileTap: onTileTap,
+          highlightedTileIds: callMode != null ? selectedTileIds : null,
+        ),
+        if (melds.isNotEmpty) ...[
+          SizedBox(width: handSize.width * 0.3),
+          MeldDisplay(melds: melds, tileSize: meldSize),
+        ],
       ],
     );
   }
 
-  Widget _buildMyHand(
-      List<Tile> tiles, Tile? justDrew, TileSize size, Tile? selectedTile) {
-    // For call mode, highlight selected tiles differently
-    return HandDisplay(
-      tiles: tiles,
-      faceUp: true,
-      tileSize: size,
-      selectedTile: selectedTile,
-      justDrew: justDrew,
-      onTileTap: onTileTap,
-      highlightedTileIds: callMode != null ? selectedTileIds : null,
+  Widget _autoToggle(
+      String label, bool value, ValueChanged<bool> onChanged) {
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
+          color: value
+              ? Colors.amber.withValues(alpha: 0.8)
+              : const Color(0xFF2A2A2A),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: value ? Colors.black : Colors.white60,
+            fontSize: 10,
+          ),
+        ),
+      ),
     );
   }
 }

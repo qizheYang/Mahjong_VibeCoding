@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import '../../i18n/strings.dart';
 import '../../models/table_state.dart';
 
-/// Always-visible action bar for the free-form mahjong table.
+/// Action bar for the free-form mahjong table.
+///
+/// Buttons only appear when they are relevant to the current game state.
+/// Auto toggles and dora flip are handled elsewhere.
 class TableActionBar extends StatelessWidget {
   final TableState tableState;
   final int mySeat;
@@ -14,10 +17,6 @@ class TableActionBar extends StatelessWidget {
   final VoidCallback onCancelCall;
   final VoidCallback onConfirmCall;
   final Lang lang;
-  final bool autoDraw;
-  final bool autoDiscard;
-  final ValueChanged<bool> onAutoDrawChanged;
-  final ValueChanged<bool> onAutoDiscardChanged;
 
   const TableActionBar({
     super.key,
@@ -30,10 +29,6 @@ class TableActionBar extends StatelessWidget {
     required this.onCancelCall,
     required this.onConfirmCall,
     required this.lang,
-    required this.autoDraw,
-    required this.autoDiscard,
-    required this.onAutoDrawChanged,
-    required this.onAutoDiscardChanged,
   });
 
   @override
@@ -45,16 +40,59 @@ class TableActionBar extends StatelessWidget {
   }
 
   Widget _buildNormalBar() {
-    final mySeat = this.mySeat;
     final seat = tableState.seats[mySeat];
     final hasSelection = selectedTileIds.isNotEmpty;
     final isMyTurn = tableState.currentTurn == mySeat;
     final hasDrawn = tableState.hasDrawnThisTurn;
-    final canDraw = isMyTurn && !hasDrawn;
     final lastBy = tableState.lastDiscardedBy;
     final prevPlayer = (mySeat - 1 + 4) % 4;
     final canChi = lastBy == prevPlayer;
     final canCallOther = lastBy != null && lastBy != mySeat;
+    final wallEmpty = tableState.wallRemaining <= 0;
+
+    // Row 1: Play actions (only show when relevant)
+    final playActions = <Widget>[];
+
+    if (isMyTurn && !hasDrawn) {
+      playActions.add(_actionBtn(tr('draw', lang), 'draw', Colors.blue));
+    }
+    if (hasSelection) {
+      playActions
+          .add(_actionBtn(tr('discard', lang), 'discard', Colors.orange));
+    }
+    if (canChi) {
+      playActions.add(_callBtn(tr('chi', lang), 'chi', Colors.green));
+    }
+    if (canCallOther) {
+      playActions.add(_callBtn(tr('pon', lang), 'pon', Colors.teal));
+    }
+    playActions.add(_kanMenuBtn(enableOpen: canCallOther));
+    if (hasSelection && !seat.isRiichi) {
+      playActions.add(_actionBtn(tr('riichi', lang), 'riichi', Colors.red));
+    }
+    playActions.add(_actionBtn(tr('win', lang), 'win', Colors.amber));
+
+    // Row 2: Management actions
+    final mgmtActions = <Widget>[
+      _actionBtn(tr('sortHand', lang), 'sortHand', Colors.grey),
+    ];
+    // Show/hide hand: only after riichi or when wall is empty
+    if (seat.isRiichi || wallEmpty) {
+      mgmtActions.add(_actionBtn(
+        seat.handRevealed ? tr('hideHand', lang) : tr('showHand', lang),
+        seat.handRevealed ? 'hideHand' : 'showHand',
+        Colors.cyan,
+      ));
+    }
+    if (lastBy == mySeat) {
+      mgmtActions.add(
+          _actionBtn(tr('undoDiscard', lang), 'undoDiscard', Colors.brown));
+    }
+    mgmtActions.addAll([
+      _actionBtn(tr('objection', lang), 'objection', Colors.redAccent),
+      _actionBtn(tr('exchange', lang), 'exchange', Colors.greenAccent),
+      _actionBtn(tr('newRound', lang), 'newRound', Colors.white70),
+    ]);
 
     return Container(
       color: const Color(0xDD0A1A0A),
@@ -64,69 +102,15 @@ class TableActionBar extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Row 1: Primary play actions
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _actionBtn(tr('draw', lang), 'draw', Colors.blue,
-                      enabled: canDraw),
-                  _actionBtn(tr('drawDeadWall', lang), 'drawDeadWall',
-                      Colors.blueGrey,
-                      enabled: canDraw),
-                  _actionBtn(
-                    tr('discard', lang),
-                    'discard',
-                    Colors.orange,
-                    enabled: hasSelection,
-                  ),
-                  _callBtn(tr('chi', lang), 'chi', Colors.green,
-                      enabled: canChi),
-                  _callBtn(tr('pon', lang), 'pon', Colors.teal,
-                      enabled: canCallOther),
-                  _kanMenuBtn(enableOpen: canCallOther),
-                  _actionBtn(
-                    tr('riichi', lang),
-                    'riichi',
-                    Colors.red,
-                    enabled: hasSelection && !seat.isRiichi,
-                  ),
-                  _actionBtn(tr('win', lang), 'win', Colors.amber),
-                ],
+            if (playActions.isNotEmpty)
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(children: playActions),
               ),
-            ),
             const SizedBox(height: 2),
-            // Row 2: Management + social
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _actionBtn(
-                      tr('revealDora', lang), 'revealDora', Colors.purple),
-                  _actionBtn(tr('sortHand', lang), 'sortHand', Colors.grey),
-                  _actionBtn(
-                    seat.handRevealed
-                        ? tr('hideHand', lang)
-                        : tr('showHand', lang),
-                    seat.handRevealed ? 'hideHand' : 'showHand',
-                    Colors.cyan,
-                  ),
-                  _actionBtn(
-                      tr('undoDiscard', lang), 'undoDiscard', Colors.brown,
-                      enabled: lastBy == mySeat),
-                  _actionBtn(
-                      tr('objection', lang), 'objection', Colors.redAccent),
-                  _actionBtn(
-                      tr('exchange', lang), 'exchange', Colors.greenAccent),
-                  _actionBtn(
-                      tr('newRound', lang), 'newRound', Colors.white70),
-                  const SizedBox(width: 6),
-                  _toggleBtn(tr('autoDraw', lang), autoDraw,
-                      onAutoDrawChanged),
-                  _toggleBtn(tr('autoDiscard', lang), autoDiscard,
-                      onAutoDiscardChanged),
-                ],
-              ),
+              child: Row(children: mgmtActions),
             ),
           ],
         ),
@@ -190,16 +174,15 @@ class TableActionBar extends StatelessWidget {
     );
   }
 
-  Widget _actionBtn(String label, String action, Color color,
-      {bool enabled = true}) {
+  Widget _actionBtn(String label, String action, Color color) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2),
       child: SizedBox(
         height: 32,
         child: ElevatedButton(
-          onPressed: enabled ? () => onAction(action) : null,
+          onPressed: () => onAction(action),
           style: ElevatedButton.styleFrom(
-            backgroundColor: color.withValues(alpha: enabled ? 0.8 : 0.3),
+            backgroundColor: color.withValues(alpha: 0.8),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             minimumSize: Size.zero,
@@ -213,16 +196,15 @@ class TableActionBar extends StatelessWidget {
     );
   }
 
-  Widget _callBtn(String label, String mode, Color color,
-      {bool enabled = true}) {
+  Widget _callBtn(String label, String mode, Color color) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2),
       child: SizedBox(
         height: 32,
         child: ElevatedButton(
-          onPressed: enabled ? () => onCallMode(mode) : null,
+          onPressed: () => onCallMode(mode),
           style: ElevatedButton.styleFrom(
-            backgroundColor: color.withValues(alpha: enabled ? 0.8 : 0.3),
+            backgroundColor: color.withValues(alpha: 0.8),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             minimumSize: Size.zero,
@@ -231,30 +213,6 @@ class TableActionBar extends StatelessWidget {
             ),
           ),
           child: Text(label, style: const TextStyle(fontSize: 12)),
-        ),
-      ),
-    );
-  }
-
-  Widget _toggleBtn(
-      String label, bool value, ValueChanged<bool> onChanged) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: SizedBox(
-        height: 32,
-        child: ElevatedButton(
-          onPressed: () => onChanged(!value),
-          style: ElevatedButton.styleFrom(
-            backgroundColor:
-                value ? Colors.amber.withValues(alpha: 0.8) : const Color(0xFF2A2A2A),
-            foregroundColor: value ? Colors.black : Colors.white60,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            minimumSize: Size.zero,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(6),
-            ),
-          ),
-          child: Text(label, style: const TextStyle(fontSize: 11)),
         ),
       ),
     );
