@@ -9,7 +9,7 @@ import 'lobby_screen.dart';
 const _serverUrl = 'ws://localhost:8080';
 
 /// Application version.
-const _appVersion = '1.1.0.1';
+const _appVersion = '1.3.1';
 const _codename = 'Sake';
 
 /// Build info injected via --dart-define at compile time.
