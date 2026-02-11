@@ -19,6 +19,11 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Set production server URL
+        run: |
+          sed -i "s|ws://localhost:8080|wss://rehydratedwater.com/mahjong-ws|" \
+            lib/ui/screens/title_screen.dart
+
       - name: Build web app
         run: |
           BUILD_VERSION=$(git rev-parse --short HEAD)
@@ -52,7 +57,6 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            # Copy server source files
             SERVER_DIR=/var/www/mahjong-server
 
             # Update server source from the mahjong repo

@@ -1,16 +1,16 @@
 #!/bin/bash
 # Deploy mahjong web + server to production.
 # Usage: ./scripts/deploy.sh [web|server|all]
-#   web    — build and deploy Flutter web only
-#   server — deploy server code, recompile, restart
+#   web    — build Flutter web, push to rehydratedwater.com repo (webhook syncs to server)
+#   server — upload server code via SSH, recompile, restart
 #   all    — both (default)
 
 set -e
 
 REMOTE="digitalocean"
-WEB_DIR="/var/www/rehydratedwater.com/mahjong"
 SERVER_DIR="/var/www/mahjong-server"
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+TARGET_REPO_DIR="/tmp/rehydratedwater-deploy"
 
 deploy_web() {
   echo "==> Building Flutter web (production URL)..."
@@ -31,10 +31,28 @@ deploy_web() {
   mv "$PROJECT_DIR/lib/ui/screens/title_screen.dart.bak" \
      "$PROJECT_DIR/lib/ui/screens/title_screen.dart"
 
-  echo "==> Uploading web build..."
-  rsync -az --delete "$PROJECT_DIR/build/web/" "$REMOTE:$WEB_DIR/"
+  echo "==> Pushing web build to rehydratedwater.com repo..."
 
-  echo "==> Web deployed."
+  # Clone or update the target repo
+  if [ -d "$TARGET_REPO_DIR/.git" ]; then
+    cd "$TARGET_REPO_DIR"
+    git pull origin main
+  else
+    rm -rf "$TARGET_REPO_DIR"
+    git clone git@github.com:qizheYang/rehydratedwater.com.git "$TARGET_REPO_DIR"
+    cd "$TARGET_REPO_DIR"
+  fi
+
+  # Replace mahjong directory
+  rm -rf mahjong
+  cp -r "$PROJECT_DIR/build/web" mahjong
+
+  # Commit and push
+  git add mahjong
+  git commit -m "Manual deploy mahjong $(date -u '+%Y-%m-%d %H:%M UTC')" || echo "No changes to commit"
+  git push origin main
+
+  echo "==> Web deployed (webhook will sync to server)."
 }
 
 deploy_server() {
