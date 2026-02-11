@@ -557,6 +557,10 @@ class _TableScreenState extends ConsumerState<TableScreen> {
       _showPonPrompt = false;
       _ponPromptScheduled = false;
       _ponHoldSent = false;
+    });
+    // Sichuan: auto-pon (no tile selection needed)
+    if (mode == 'pon' && _tryAutoPon()) return;
+    setState(() {
       _callMode = mode;
       _selectedTileIds.clear();
     });
@@ -565,10 +569,30 @@ class _TableScreenState extends ConsumerState<TableScreen> {
   void _onCallMode(String mode) {
     _dismissDrawPrompt();
     _drawPromptScheduled = false;
+    // Sichuan: auto-pon (no tile selection needed)
+    if (mode == 'pon' && _tryAutoPon()) return;
     setState(() {
       _callMode = mode;
       _selectedTileIds.clear();
     });
+  }
+
+  /// In Sichuan, auto-select 2 matching tiles and send pon immediately.
+  /// Returns true if auto-pon was performed.
+  bool _tryAutoPon() {
+    final tableState = ref.read(tableStateProvider);
+    if (tableState == null || !tableState.config.isSichuan) return false;
+    final discardId = tableState.lastDiscardedTileId;
+    if (discardId == null) return false;
+    final mySeat = ref.read(multiplayerProvider).mySeat ?? 0;
+    final handIds = tableState.seats[mySeat].handTileIds;
+    if (handIds == null) return false;
+    final discardKind = discardId ~/ 4;
+    final matches =
+        handIds.where((id) => id ~/ 4 == discardKind).take(2).toList();
+    if (matches.length < 2) return false;
+    ref.read(multiplayerProvider.notifier).sendAction(TableAction.pon(matches));
+    return true;
   }
 
   void _onCancelCall() {
