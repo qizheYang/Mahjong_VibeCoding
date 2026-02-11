@@ -53,8 +53,15 @@ class TableLogic {
     state.pendingWin = null;
     state.pendingExchange = null;
     state.suggestKeepDealer = false;
+    state.baidaReferenceTileId = null;
     state.actionLog.clear();
     state.addLog(state.dealerSeat, 'deal');
+
+    // Shanghai 百搭: flip a reference tile from the live wall
+    if (config.hasBaida && state.liveTileIds.isNotEmpty) {
+      state.baidaReferenceTileId = state.liveTileIds.removeAt(0);
+      state.addLog(-1, 'baidaFlip', tileId: state.baidaReferenceTileId);
+    }
   }
 
   /// Draw a tile from the live wall (front).

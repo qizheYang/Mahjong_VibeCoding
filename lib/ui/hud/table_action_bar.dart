@@ -60,7 +60,7 @@ class TableActionBar extends StatelessWidget {
       playActions
           .add(_actionBtn(tr('discard', lang), 'discard', Colors.orange));
     }
-    if (canChi) {
+    if (canChi && !tableState.config.isSichuan) {
       playActions.add(_callBtn(tr('chi', lang), 'chi', Colors.green));
     }
     if (canCallOther) {
@@ -71,10 +71,8 @@ class TableActionBar extends StatelessWidget {
       playActions.add(_actionBtn(tr('riichi', lang), 'riichi', Colors.red));
     }
     playActions.add(_actionBtn(tr('win', lang), 'win', Colors.amber));
-    // 补花: only for 144/152 variants when a tile is selected
-    if (hasSelection &&
-        (tableState.config.hasFlowers ||
-            tableState.config.dragonsAreFlowers)) {
+    // 补花: only for variants with flower tiles when a tile is selected
+    if (hasSelection && tableState.config.hasFlowers) {
       playActions.add(
           _actionBtn(tr('drawFlower', lang), 'drawFlower', Colors.pink));
     }

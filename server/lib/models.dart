@@ -24,6 +24,7 @@ class ServerState {
   ExchangeProposal? pendingExchange;
   List<ActionLogEntry> actionLog = [];
   GameConfig config = const GameConfig();
+  int? baidaReferenceTileId; // flipped reference tile for Shanghai 百搭
 
   /// Apply config and reset scores to starting points.
   void applyConfig(GameConfig newConfig) {
@@ -58,6 +59,8 @@ class ServerState {
       'actionLog':
           actionLog.map((e) => e.toJson()).toList(),
       'config': config.toJson(),
+      if (baidaReferenceTileId != null)
+        'baidaReferenceTileId': baidaReferenceTileId,
     };
   }
 

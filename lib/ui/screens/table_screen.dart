@@ -46,6 +46,7 @@ class _TableScreenState extends ConsumerState<TableScreen> {
     final objection = ref.watch(objectionProvider);
     final autoDraw = ref.watch(autoDrawProvider);
     final autoDiscard = ref.watch(autoDiscardProvider);
+    final autoFlower = ref.watch(autoFlowerProvider);
 
     // Auto-draw: when it's my turn and I haven't drawn yet
     if (tableState != null && autoDraw) {
@@ -73,6 +74,24 @@ class _TableScreenState extends ConsumerState<TableScreen> {
               .read(multiplayerProvider.notifier)
               .sendAction(TableAction.discard(justDrew));
         });
+      }
+    }
+
+    // Auto-flower: when I just drew a flower tile, auto 补花
+    if (tableState != null && autoFlower && tableState.config.hasFlowers) {
+      final mySeatIdx = conn.mySeat ?? 0;
+      final seat = tableState.seats[mySeatIdx];
+      if (seat.handTileIds != null) {
+        final flowerInHand = seat.handTileIds!
+            .where((id) => tableState.config.isFlowerTile(id))
+            .toList();
+        if (flowerInHand.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref
+                .read(multiplayerProvider.notifier)
+                .sendAction(TableAction.drawFlower(flowerInHand.first));
+          });
+        }
       }
     }
 
@@ -118,10 +137,13 @@ class _TableScreenState extends ConsumerState<TableScreen> {
                   lang: lang,
                   autoDraw: autoDraw,
                   autoDiscard: autoDiscard,
+                  autoFlower: autoFlower,
                   onAutoDrawChanged: (v) =>
                       ref.read(autoDrawProvider.notifier).state = v,
                   onAutoDiscardChanged: (v) =>
                       ref.read(autoDiscardProvider.notifier).state = v,
+                  onAutoFlowerChanged: (v) =>
+                      ref.read(autoFlowerProvider.notifier).state = v,
                 ),
 
                 // Sichuan suit selection overlay (缺一门)
@@ -129,7 +151,11 @@ class _TableScreenState extends ConsumerState<TableScreen> {
                     tableState.gameStarted &&
                     tableState.seats
                         .any((s) => s.missingSuit == null))
-                  Positioned.fill(
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    bottom: 80, // leave room for hand tiles
                     child: SuitSelectionOverlay(
                       lang: lang,
                       allMissingSuits: tableState.seats

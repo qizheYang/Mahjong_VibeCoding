@@ -26,6 +26,7 @@ class TableState {
   final ExchangeProposal? pendingExchange;
   final List<ActionLogEntry> actionLog;
   final GameConfig config;
+  final int? baidaReferenceTileId; // Shanghai 百搭 reference tile
 
   const TableState({
     required this.wallRemaining,
@@ -50,6 +51,7 @@ class TableState {
     this.pendingExchange,
     required this.actionLog,
     this.config = const GameConfig(),
+    this.baidaReferenceTileId,
   });
 
   factory TableState.fromJson(Map<String, dynamic> json) {
@@ -90,6 +92,7 @@ class TableState {
       config: json['config'] != null
           ? GameConfig.fromJson(json['config'] as Map<String, dynamic>)
           : const GameConfig(),
+      baidaReferenceTileId: json['baidaReferenceTileId'] as int?,
     );
   }
 

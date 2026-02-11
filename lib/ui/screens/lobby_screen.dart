@@ -252,18 +252,20 @@ class LobbyScreen extends ConsumerWidget {
 class _VariantOption {
   final int tileCount;
   final bool isRiichi;
+  final bool hasBaida;
   final String nameKey;
   final String descKey;
   const _VariantOption(
-      this.tileCount, this.isRiichi, this.nameKey, this.descKey);
+      this.tileCount, this.isRiichi, this.hasBaida, this.nameKey, this.descKey);
 }
 
 const _variants = [
-  _VariantOption(108, false, 'sichuan', 'sichuanDesc'),
-  _VariantOption(136, true, 'riichiVariant', 'riichiDesc'),
-  _VariantOption(136, false, 'guobiao', 'guobiaoDesc'),
-  _VariantOption(144, false, 'guobiaoFlowers', 'guobiaoFlowersDesc'),
-  _VariantOption(152, false, 'suzhouShanghai', 'suzhouShanghaiDesc'),
+  _VariantOption(108, false, false, 'sichuan', 'sichuanDesc'),
+  _VariantOption(136, true, false, 'riichiVariant', 'riichiDesc'),
+  _VariantOption(136, false, false, 'guobiao', 'guobiaoDesc'),
+  _VariantOption(144, false, false, 'guobiaoFlowers', 'guobiaoFlowersDesc'),
+  _VariantOption(144, false, true, 'shanghai', 'shanghaiDesc'),
+  _VariantOption(152, false, false, 'suzhou', 'suzhouDesc'),
 ];
 
 // ─── Game Config Panel ────────────────────────────────────
@@ -297,7 +299,8 @@ class _GameConfigPanelState extends ConsumerState<_GameConfigPanel> {
     final config = ref.read(gameConfigProvider);
     for (int i = 0; i < _variants.length; i++) {
       if (_variants[i].tileCount == config.tileCount &&
-          _variants[i].isRiichi == config.isRiichi) {
+          _variants[i].isRiichi == config.isRiichi &&
+          _variants[i].hasBaida == config.hasBaida) {
         return i;
       }
     }
@@ -310,6 +313,7 @@ class _GameConfigPanelState extends ConsumerState<_GameConfigPanel> {
     ref.read(gameConfigProvider.notifier).state = GameConfig(
       tileCount: v.tileCount,
       isRiichi: v.isRiichi,
+      hasBaida: v.hasBaida,
       startingPoints: _customPoints
           ? (int.tryParse(_pointsController.text) ?? defaultPts)
           : defaultPts,
@@ -326,6 +330,7 @@ class _GameConfigPanelState extends ConsumerState<_GameConfigPanel> {
     ref.read(gameConfigProvider.notifier).state = GameConfig(
       tileCount: config.tileCount,
       isRiichi: config.isRiichi,
+      hasBaida: config.hasBaida,
       startingPoints: pts,
     );
   }

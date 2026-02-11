@@ -157,15 +157,15 @@ const Map<String, Map<Lang, String>> _strings = {
     Lang.en: 'Guobiao+Flowers',
     Lang.ja: '国標(花牌)',
   },
-  'suzhouShanghai': {
-    Lang.zh: '苏州/上海',
-    Lang.en: 'Suzhou/Shanghai',
-    Lang.ja: '蘇州/上海',
+  'shanghai': {
+    Lang.zh: '上海麻将',
+    Lang.en: 'Shanghai',
+    Lang.ja: '上海麻雀',
   },
   'sichuanDesc': {
-    Lang.zh: '仅数牌(108张), 无宝牌',
-    Lang.en: 'Numbers only (108), no dora',
-    Lang.ja: '数牌のみ(108枚), ドラなし',
+    Lang.zh: '仅数牌(108张), 缺一门, 无吃',
+    Lang.en: 'Numbers only (108), no chi',
+    Lang.ja: '数牌のみ(108枚), チーなし',
   },
   'riichiDesc': {
     Lang.zh: '标准136张, 翻宝牌',
@@ -182,12 +182,24 @@ const Map<String, Map<Lang, String>> _strings = {
     Lang.en: '144 tiles (with flowers)',
     Lang.ja: '144枚(花牌あり)',
   },
-  'suzhouShanghaiDesc': {
-    Lang.zh: '152张, 中发白也是花牌',
-    Lang.en: '152 tiles, dragons are flowers',
-    Lang.ja: '152枚, 三元牌も花牌',
+  'shanghaiDesc': {
+    Lang.zh: '144张, 百搭(翻百搭定财神)',
+    Lang.en: '144 tiles, wild card (百搭)',
+    Lang.ja: '144枚, 百搭(ワイルドカード)',
   },
   'drawFlower': {Lang.zh: '补花', Lang.en: 'Flower', Lang.ja: '補花'},
+  'baida': {Lang.zh: '百搭', Lang.en: 'Wild', Lang.ja: '百搭'},
+  'autoFlower': {Lang.zh: '自动补花', Lang.en: 'Auto Flower', Lang.ja: '自動補花'},
+  'suzhou': {
+    Lang.zh: '苏州麻将',
+    Lang.en: 'Suzhou',
+    Lang.ja: '蘇州麻雀',
+  },
+  'suzhouDesc': {
+    Lang.zh: '152张(含16张花牌)',
+    Lang.en: '152 tiles (16 flowers)',
+    Lang.ja: '152枚(花牌16枚)',
+  },
   'flowers': {Lang.zh: '花', Lang.en: 'Flowers', Lang.ja: '花'},
   'gameConfig': {
     Lang.zh: '游戏设置',

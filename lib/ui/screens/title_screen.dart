@@ -9,7 +9,7 @@ import 'lobby_screen.dart';
 const _serverUrl = 'wss://rehydratedwater.com/mahjong-ws';
 
 /// Application version.
-const _appVersion = '1.0.0.0';
+const _appVersion = '1.1.0.0';
 const _codename = 'Sake';
 
 /// Build info injected via --dart-define at compile time.

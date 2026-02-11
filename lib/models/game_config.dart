@@ -1,35 +1,37 @@
 /// Game configuration for different mahjong variants.
 ///
 /// Tile counts and their corresponding variants:
-/// - 108: Sichuan mahjong (number tiles only, no dora)
+/// - 108: Sichuan mahjong (number tiles only, no chi, 缺一门)
 /// - 136: Riichi (with dora) or Guobiao (no dora)
-/// - 144: Guobiao with flowers (春夏秋冬梅兰竹菊)
-/// - 152: Suzhou/Shanghai (flowers + extra flowers, 中发白 are flowers)
+/// - 144: Guobiao with flowers, or Shanghai (with 百搭)
+/// - 152: Suzhou mahjong (16 flowers)
 class GameConfig {
   final int tileCount;
   final bool isRiichi;
+  final bool hasBaida; // Shanghai 百搭 wild card
   final int startingPoints;
 
   const GameConfig({
     this.tileCount = 136,
     this.isRiichi = true,
+    this.hasBaida = false,
     this.startingPoints = 25000,
   });
 
-  /// Whether this is Sichuan mahjong (108 tiles, 缺一门).
+  /// Whether this is Sichuan mahjong (108 tiles, 缺一门, no chi).
   bool get isSichuan => tileCount == 108;
 
-  /// Whether this variant includes flower tiles (144, 152).
+  /// Whether this is Shanghai mahjong (144 tiles + 百搭).
+  bool get isShanghai => tileCount == 144 && hasBaida;
+
+  /// Whether this variant includes flower tiles (144).
   bool get hasFlowers => tileCount >= 144;
 
   /// Whether dora mechanics are enabled (Riichi 136 only).
   bool get hasDora => isRiichi && tileCount == 136;
 
-  /// Whether 中发白 are treated as flowers (152 mode).
-  bool get dragonsAreFlowers => tileCount == 152;
-
-  /// Whether a dead wall is used.
-  bool get hasDeadWall => tileCount >= 136;
+  /// Whether a dead wall is used (Riichi only).
+  bool get hasDeadWall => hasDora;
 
   /// Number of dead wall tiles.
   int get deadWallSize => hasDeadWall ? 14 : 0;
@@ -42,9 +44,9 @@ class GameConfig {
       case 136:
         return isRiichi ? 'riichi' : 'guobiao';
       case 144:
-        return 'guobiaoFlowers';
+        return hasBaida ? 'shanghai' : 'guobiaoFlowers';
       case 152:
-        return 'suzhouShanghai';
+        return 'suzhou';
       default:
         return 'riichi';
     }
@@ -77,15 +79,13 @@ class GameConfig {
 
   /// Check if a tile ID represents a flower in this config.
   bool isFlowerTile(int tileId) {
-    if (tileId >= 136) return true;
-    // In 152 mode, 中发白 (kinds 31-33, IDs 124-135) are also flowers
-    if (dragonsAreFlowers && tileId >= 124) return true;
-    return false;
+    return tileId >= 136;
   }
 
   Map<String, dynamic> toJson() => {
         'tileCount': tileCount,
         'isRiichi': isRiichi,
+        'hasBaida': hasBaida,
         'startingPoints': startingPoints,
       };
 
@@ -93,6 +93,7 @@ class GameConfig {
     return GameConfig(
       tileCount: json['tileCount'] as int? ?? 136,
       isRiichi: json['isRiichi'] as bool? ?? true,
+      hasBaida: json['hasBaida'] as bool? ?? false,
       startingPoints: json['startingPoints'] as int? ?? 25000,
     );
   }

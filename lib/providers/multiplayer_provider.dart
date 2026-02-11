@@ -221,5 +221,7 @@ final autoDrawProvider = StateProvider<bool>((ref) => false);
 
 final autoDiscardProvider = StateProvider<bool>((ref) => false);
 
+final autoFlowerProvider = StateProvider<bool>((ref) => false);
+
 final gameConfigProvider =
     StateProvider<GameConfig>((ref) => const GameConfig());

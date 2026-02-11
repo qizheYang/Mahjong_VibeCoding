@@ -21,9 +21,25 @@ class TileWidget extends StatelessWidget {
     this.onTap,
   });
 
-  /// Map a Tile to its asset filename (null for flower tiles).
+  /// Standard flower asset names by index (0-7: 春夏秋冬梅兰竹菊).
+  static const _flowerAssets = [
+    'assets/tiles/flower_chun.png', // 春
+    'assets/tiles/flower_xia.png', // 夏
+    'assets/tiles/flower_qiu.png', // 秋
+    'assets/tiles/flower_dong.png', // 冬
+    'assets/tiles/flower_mei.png', // 梅
+    'assets/tiles/flower_lan.png', // 兰
+    'assets/tiles/flower_zhu.png', // 竹
+    'assets/tiles/flower_ju.png', // 菊
+  ];
+
+  /// Map a Tile to its asset filename (null for text-rendered tiles).
   static String? tileAsset(Tile tile) {
-    if (tile.isFlower) return null;
+    if (tile.isFlower) {
+      final idx = tile.id - 136;
+      if (idx < _flowerAssets.length) return _flowerAssets[idx];
+      return null; // extra flowers (144-151) rendered as text
+    }
     if (tile.isRedDora) {
       final suit = switch (tile.type) {
         TileType.man => 'm',
@@ -115,17 +131,22 @@ class TileWidget extends StatelessWidget {
   Widget _buildFlowerTile() {
     final color = _flowerColor(tile);
     final label = tile.shortName;
-    final fontSize = size.width * 0.55;
+    final isExtra = tile.id >= 144; // extra flowers: bracketed style
+    final fontSize = size.width * (isExtra ? 0.42 : 0.55);
     return Container(
       width: size.width,
       height: size.height,
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: Colors.grey.shade300, width: 0.5),
+        border: Border.all(
+          color: isExtra ? Colors.grey.shade400 : Colors.grey.shade300,
+          width: isExtra ? 1.5 : 0.5,
+        ),
+        borderRadius: isExtra ? BorderRadius.circular(size.borderRadius) : null,
       ),
       child: Center(
         child: Text(
-          label,
+          isExtra ? '[$label]' : label,
           style: TextStyle(
             color: color,
             fontSize: fontSize,

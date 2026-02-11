@@ -28,8 +28,10 @@ class MultiplayerTableView extends StatelessWidget {
   final Lang lang;
   final bool autoDraw;
   final bool autoDiscard;
+  final bool autoFlower;
   final ValueChanged<bool> onAutoDrawChanged;
   final ValueChanged<bool> onAutoDiscardChanged;
+  final ValueChanged<bool> onAutoFlowerChanged;
 
   const MultiplayerTableView({
     super.key,
@@ -41,8 +43,10 @@ class MultiplayerTableView extends StatelessWidget {
     required this.lang,
     required this.autoDraw,
     required this.autoDiscard,
+    required this.autoFlower,
     required this.onAutoDrawChanged,
     required this.onAutoDiscardChanged,
+    required this.onAutoFlowerChanged,
   });
 
   int _relativePosition(int seatIndex) => (seatIndex - mySeat + 4) % 4;
@@ -251,6 +255,57 @@ class MultiplayerTableView extends StatelessWidget {
           _compassLabel(1),
           _compassLabel(2),
           _compassLabel(3),
+          if (tableState.baidaReferenceTileId != null)
+            Positioned(
+              bottom: 2,
+              right: 2,
+              child: _baidaIndicator(tableState.baidaReferenceTileId!),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _baidaIndicator(int refTileId) {
+    final refTile = Tile(refTileId);
+    // Wild card is the next tile in sequence from the reference
+    final refKind = refTile.kind;
+    int wildKind;
+    if (refKind < 27) {
+      // Number tile: wrap within suit (0-8 per suit)
+      final suit = refKind ~/ 9;
+      final num = refKind % 9;
+      wildKind = suit * 9 + (num + 1) % 9;
+    } else {
+      // Honor tile: winds 27-30 wrap, dragons 31-33 wrap
+      if (refKind < 31) {
+        wildKind = 27 + (refKind - 27 + 1) % 4;
+      } else {
+        wildKind = 31 + (refKind - 31 + 1) % 3;
+      }
+    }
+    final wildTile = Tile(wildKind * 4);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+      decoration: BoxDecoration(
+        color: const Color(0xCC000000),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${tr("baida", lang)}: ',
+            style: const TextStyle(color: Colors.amber, fontSize: 8),
+          ),
+          Text(
+            wildTile.shortName,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
@@ -419,6 +474,11 @@ class MultiplayerTableView extends StatelessWidget {
             const SizedBox(height: 2),
             _autoToggle(
                 tr('autoDiscard', lang), autoDiscard, onAutoDiscardChanged),
+            if (tableState.config.hasFlowers) ...[
+              const SizedBox(height: 2),
+              _autoToggle(
+                  tr('autoFlower', lang), autoFlower, onAutoFlowerChanged),
+            ],
           ],
         ),
         const SizedBox(width: 6),
