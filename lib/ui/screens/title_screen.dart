@@ -6,10 +6,10 @@ import '../../providers/multiplayer_provider.dart';
 import 'lobby_screen.dart';
 
 /// Server URL — change for production deployment.
-const _serverUrl = 'wss://rehydratedwater.com/mahjong-ws';
+const _serverUrl = 'ws://localhost:8080';
 
 /// Application version.
-const _appVersion = '1.1.0.0';
+const _appVersion = '1.1.0.1';
 const _codename = 'Sake';
 
 /// Build info injected via --dart-define at compile time.
