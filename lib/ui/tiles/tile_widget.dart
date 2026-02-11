@@ -6,6 +6,10 @@ import 'tile_size.dart';
 /// Renders a single mahjong tile face-up using real tile graphics.
 /// Flower tiles are rendered as colored text on white background.
 class TileWidget extends StatelessWidget {
+  /// Whether to show red dora tile faces (only relevant in Riichi mode).
+  /// Set by the table view based on game config before building.
+  static bool showRedDora = true;
+
   final Tile tile;
   final TileSize size;
   final bool isSelected;
@@ -40,7 +44,7 @@ class TileWidget extends StatelessWidget {
       if (idx < _flowerAssets.length) return _flowerAssets[idx];
       return null; // extra flowers (144-151) rendered as text
     }
-    if (tile.isRedDora) {
+    if (tile.isRedDora && showRedDora) {
       final suit = switch (tile.type) {
         TileType.man => 'm',
         TileType.pin => 'p',

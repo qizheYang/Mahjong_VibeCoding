@@ -89,4 +89,71 @@ class ScoreCalculator {
   }
 
   static int _roundUp100(int n) => ((n + 99) ~/ 100) * 100;
+
+  /// Sichuan scoring: 2^han per player.
+  /// Tsumo: each of the 3 other players pays 2^han to winner.
+  /// Ron: loser pays 2^han to winner.
+  static Map<int, int> sichuanPayments({
+    required int han,
+    required bool isTsumo,
+    required int winnerSeat,
+    required int? loserSeat,
+  }) {
+    final perPlayer = 1 << han; // 2^han
+    final payments = <int, int>{};
+
+    if (isTsumo) {
+      for (int i = 0; i < 4; i++) {
+        if (i == winnerSeat) {
+          payments[i] = perPlayer * 3;
+        } else {
+          payments[i] = -perPlayer;
+        }
+      }
+    } else {
+      for (int i = 0; i < 4; i++) {
+        if (i == winnerSeat) {
+          payments[i] = perPlayer;
+        } else if (i == loserSeat) {
+          payments[i] = -perPlayer;
+        } else {
+          payments[i] = 0;
+        }
+      }
+    }
+    return payments;
+  }
+
+  /// Direct point entry (Guobiao, Shanghai, Suzhou, etc.).
+  /// Tsumo: each of the 3 other players pays perPlayer to winner.
+  /// Ron: loser pays perPlayer to winner.
+  static Map<int, int> directPayments({
+    required int perPlayer,
+    required bool isTsumo,
+    required int winnerSeat,
+    required int? loserSeat,
+  }) {
+    final payments = <int, int>{};
+
+    if (isTsumo) {
+      for (int i = 0; i < 4; i++) {
+        if (i == winnerSeat) {
+          payments[i] = perPlayer * 3;
+        } else {
+          payments[i] = -perPlayer;
+        }
+      }
+    } else {
+      for (int i = 0; i < 4; i++) {
+        if (i == winnerSeat) {
+          payments[i] = perPlayer;
+        } else if (i == loserSeat) {
+          payments[i] = -perPlayer;
+        } else {
+          payments[i] = 0;
+        }
+      }
+    }
+    return payments;
+  }
 }

@@ -50,7 +50,12 @@ class RoomConnection {
 class LobbySeat {
   final String nickname;
   final bool isHost;
-  const LobbySeat({required this.nickname, required this.isHost});
+  final bool isAi;
+  const LobbySeat({
+    required this.nickname,
+    required this.isHost,
+    this.isAi = false,
+  });
 }
 
 class LobbyState {
@@ -164,6 +169,7 @@ class MultiplayerNotifier extends StateNotifier<RoomConnection> {
             return LobbySeat(
               nickname: m['nickname'] as String,
               isHost: m['isHost'] as bool? ?? false,
+              isAi: m['isAi'] as bool? ?? false,
             );
           }).toList();
           _ref.read(lobbyProvider.notifier).state =
@@ -173,6 +179,8 @@ class MultiplayerNotifier extends StateNotifier<RoomConnection> {
           final tableState = TableState.fromJson(
               msg['state'] as Map<String, dynamic>);
           _ref.read(tableStateProvider.notifier).state = tableState;
+          // Clear hold when game state changes (turn may have advanced)
+          _ref.read(holdProvider.notifier).state = null;
 
         case 'objection':
           _ref.read(objectionProvider.notifier).state =
@@ -181,6 +189,12 @@ class MultiplayerNotifier extends StateNotifier<RoomConnection> {
             nickname: msg['nickname'] as String,
             message: msg['message'] as String? ?? '',
           );
+
+        case 'hold':
+          _ref.read(holdProvider.notifier).state = msg['seat'] as int;
+
+        case 'releaseHold':
+          _ref.read(holdProvider.notifier).state = null;
 
         case 'playerLeft':
           // Lobby update will follow
@@ -217,7 +231,10 @@ final tableStateProvider = StateProvider<TableState?>((ref) => null);
 
 final objectionProvider = StateProvider<ObjectionNotification?>((ref) => null);
 
-final autoDrawProvider = StateProvider<bool>((ref) => false);
+/// Seat that has called hold (pausing auto-draw), or null.
+final holdProvider = StateProvider<int?>((ref) => null);
+
+final autoDrawProvider = StateProvider<bool>((ref) => true);
 
 final autoDiscardProvider = StateProvider<bool>((ref) => false);
 

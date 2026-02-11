@@ -224,4 +224,97 @@ void main() {
       expect(payments[2], -8000);
     });
   });
+
+  group('ScoreCalculator.sichuanPayments', () {
+    test('tsumo: each pays 2^han', () {
+      final payments = ScoreCalculator.sichuanPayments(
+        han: 3,
+        isTsumo: true,
+        winnerSeat: 0,
+        loserSeat: null,
+      );
+
+      // 2^3 = 8 per player
+      expect(payments[1], -8);
+      expect(payments[2], -8);
+      expect(payments[3], -8);
+      expect(payments[0], 24);
+      final sum = payments.values.fold<int>(0, (a, b) => a + b);
+      expect(sum, 0);
+    });
+
+    test('ron: loser pays 2^han', () {
+      final payments = ScoreCalculator.sichuanPayments(
+        han: 2,
+        isTsumo: false,
+        winnerSeat: 1,
+        loserSeat: 2,
+      );
+
+      // 2^2 = 4
+      expect(payments[1], 4);
+      expect(payments[2], -4);
+      expect(payments[0], 0);
+      expect(payments[3], 0);
+    });
+
+    test('1 han tsumo: 2 per player', () {
+      final payments = ScoreCalculator.sichuanPayments(
+        han: 1,
+        isTsumo: true,
+        winnerSeat: 2,
+        loserSeat: null,
+      );
+
+      expect(payments[0], -2);
+      expect(payments[1], -2);
+      expect(payments[2], 6);
+      expect(payments[3], -2);
+    });
+
+    test('5 han ron: 32 from loser', () {
+      final payments = ScoreCalculator.sichuanPayments(
+        han: 5,
+        isTsumo: false,
+        winnerSeat: 0,
+        loserSeat: 3,
+      );
+
+      // 2^5 = 32
+      expect(payments[0], 32);
+      expect(payments[3], -32);
+    });
+  });
+
+  group('ScoreCalculator.directPayments', () {
+    test('tsumo: each pays perPlayer', () {
+      final payments = ScoreCalculator.directPayments(
+        perPlayer: 10,
+        isTsumo: true,
+        winnerSeat: 0,
+        loserSeat: null,
+      );
+
+      expect(payments[1], -10);
+      expect(payments[2], -10);
+      expect(payments[3], -10);
+      expect(payments[0], 30);
+      final sum = payments.values.fold<int>(0, (a, b) => a + b);
+      expect(sum, 0);
+    });
+
+    test('ron: loser pays perPlayer', () {
+      final payments = ScoreCalculator.directPayments(
+        perPlayer: 8,
+        isTsumo: false,
+        winnerSeat: 2,
+        loserSeat: 1,
+      );
+
+      expect(payments[2], 8);
+      expect(payments[1], -8);
+      expect(payments[0], 0);
+      expect(payments[3], 0);
+    });
+  });
 }

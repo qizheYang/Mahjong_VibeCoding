@@ -265,7 +265,7 @@ class TableLogic {
     state.addLog(seat, 'riichi', tileId: tileId);
   }
 
-  /// Declare win: create proposal for others to confirm/reject.
+  /// Declare win (Riichi): create proposal for others to confirm/reject.
   static void declareWin(
       ServerState state, int seat, bool isTsumo, int han, int fu) {
     final tierName = ScoreCalculator.tierName(han, fu);
@@ -289,6 +289,59 @@ class TableLogic {
       isTsumo: isTsumo,
       han: han,
       fu: fu,
+      tierName: tierName,
+      totalPoints: total,
+      payments: payments,
+    );
+    state.addLog(seat, 'declareWin',
+        detail: '$tierName ${isTsumo ? "自摸" : "荣和"} $total点');
+  }
+
+  /// Declare win (Sichuan): han 1-5, scoring is 2^han per player.
+  static void declareWinSichuan(
+      ServerState state, int seat, bool isTsumo, int han) {
+    final loserSeat = isTsumo ? null : state.lastDiscardedBy;
+    final payments = ScoreCalculator.sichuanPayments(
+      han: han,
+      isTsumo: isTsumo,
+      winnerSeat: seat,
+      loserSeat: loserSeat,
+    );
+    final total = payments[seat] ?? 0;
+    final perPlayer = 1 << han;
+    final tierName = '$han番 ($perPlayer点)';
+
+    state.pendingWin = WinProposal(
+      seatIndex: seat,
+      isTsumo: isTsumo,
+      han: han,
+      fu: 0,
+      tierName: tierName,
+      totalPoints: total,
+      payments: payments,
+    );
+    state.addLog(seat, 'declareWin',
+        detail: '$tierName ${isTsumo ? "自摸" : "荣和"} $total点');
+  }
+
+  /// Declare win (Direct entry): winner enters per-player amount.
+  static void declareWinDirect(
+      ServerState state, int seat, bool isTsumo, int perPlayer) {
+    final loserSeat = isTsumo ? null : state.lastDiscardedBy;
+    final payments = ScoreCalculator.directPayments(
+      perPlayer: perPlayer,
+      isTsumo: isTsumo,
+      winnerSeat: seat,
+      loserSeat: loserSeat,
+    );
+    final total = payments[seat] ?? 0;
+    final tierName = '$perPlayer点';
+
+    state.pendingWin = WinProposal(
+      seatIndex: seat,
+      isTsumo: isTsumo,
+      han: 0,
+      fu: 0,
       tierName: tierName,
       totalPoints: total,
       payments: payments,
@@ -337,7 +390,9 @@ class TableLogic {
   }
 
   /// Reveal next dora indicator.
+  /// Blocked if noKanDora is set and initial dora already revealed.
   static void revealDora(ServerState state) {
+    if (state.config.noKanDora && state.doraRevealed >= 1) return;
     if (state.doraRevealed < 5) {
       state.doraRevealed++;
       state.addLog(-1, 'revealDora');

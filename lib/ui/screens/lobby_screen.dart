@@ -124,6 +124,24 @@ class LobbyScreen extends ConsumerWidget {
                                 ),
                               ),
                             ),
+                            if (seat?.isAi == true)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                margin: const EdgeInsets.only(right: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.blueAccent,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'AI',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                             if (seat?.isHost == true)
                               Container(
                                 padding: const EdgeInsets.symmetric(
@@ -309,6 +327,7 @@ class _GameConfigPanelState extends ConsumerState<_GameConfigPanel> {
 
   void _selectVariant(int idx) {
     final v = _variants[idx];
+    final old = ref.read(gameConfigProvider);
     final defaultPts = GameConfig.defaultPoints(v.tileCount, v.isRiichi);
     ref.read(gameConfigProvider.notifier).state = GameConfig(
       tileCount: v.tileCount,
@@ -317,10 +336,39 @@ class _GameConfigPanelState extends ConsumerState<_GameConfigPanel> {
       startingPoints: _customPoints
           ? (int.tryParse(_pointsController.text) ?? defaultPts)
           : defaultPts,
+      riichiMode: v.isRiichi ? old.riichiMode : 'free',
+      noKanDora: v.isRiichi ? old.noKanDora : false,
+      noAkaDora: v.isRiichi ? old.noAkaDora : false,
+      noUraDora: v.isRiichi ? old.noUraDora : false,
+      noIppatsu: v.isRiichi ? old.noIppatsu : false,
+      aiSeats: v.tileCount == 108 ? old.aiSeats : const [false, false, false, false],
     );
     if (!_customPoints) {
       _pointsController.text = defaultPts.toString();
     }
+  }
+
+  void _updateConfig({
+    String? riichiMode,
+    bool? noKanDora,
+    bool? noAkaDora,
+    bool? noUraDora,
+    bool? noIppatsu,
+    List<bool>? aiSeats,
+  }) {
+    final c = ref.read(gameConfigProvider);
+    ref.read(gameConfigProvider.notifier).state = GameConfig(
+      tileCount: c.tileCount,
+      isRiichi: c.isRiichi,
+      hasBaida: c.hasBaida,
+      startingPoints: c.startingPoints,
+      riichiMode: riichiMode ?? c.riichiMode,
+      noKanDora: noKanDora ?? c.noKanDora,
+      noAkaDora: noAkaDora ?? c.noAkaDora,
+      noUraDora: noUraDora ?? c.noUraDora,
+      noIppatsu: noIppatsu ?? c.noIppatsu,
+      aiSeats: aiSeats ?? c.aiSeats,
+    );
   }
 
   void _updatePoints(String value) {
@@ -332,6 +380,12 @@ class _GameConfigPanelState extends ConsumerState<_GameConfigPanel> {
       isRiichi: config.isRiichi,
       hasBaida: config.hasBaida,
       startingPoints: pts,
+      riichiMode: config.riichiMode,
+      noKanDora: config.noKanDora,
+      noAkaDora: config.noAkaDora,
+      noUraDora: config.noUraDora,
+      noIppatsu: config.noIppatsu,
+      aiSeats: config.aiSeats,
     );
   }
 
@@ -424,6 +478,18 @@ class _GameConfigPanelState extends ConsumerState<_GameConfigPanel> {
             );
           }),
 
+          // Riichi sub-modes
+          if (selected == 1) ...[
+            const SizedBox(height: 8),
+            _buildRiichiSubModes(lang),
+          ],
+
+          // Sichuan AI toggles
+          if (selected == 0) ...[
+            const SizedBox(height: 8),
+            _buildAiToggles(lang),
+          ],
+
           const SizedBox(height: 12),
 
           // Starting points
@@ -476,6 +542,197 @@ class _GameConfigPanelState extends ConsumerState<_GameConfigPanel> {
                 style: const TextStyle(
                     color: Colors.white54, fontSize: 13),
               ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRiichiSubModes(Lang lang) {
+    final config = ref.watch(gameConfigProvider);
+    final mode = config.riichiMode;
+
+    Widget modeRadio(String value, String nameKey, String descKey,
+        {bool enabled = true}) {
+      final isActive = mode == value;
+      return GestureDetector(
+        onTap: enabled ? () => _updateConfig(riichiMode: value) : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+          margin: const EdgeInsets.symmetric(vertical: 1),
+          decoration: BoxDecoration(
+            color: isActive
+                ? const Color(0x30FFD54F)
+                : const Color(0x10FFFFFF),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: isActive ? Colors.amber.withValues(alpha: 0.6) : Colors.white10,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isActive ? Icons.radio_button_checked : Icons.radio_button_off,
+                size: 16,
+                color: enabled
+                    ? (isActive ? Colors.amber : Colors.white38)
+                    : Colors.white12,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr(nameKey, lang),
+                      style: TextStyle(
+                        color: enabled
+                            ? (isActive ? Colors.amber : Colors.white70)
+                            : Colors.white24,
+                        fontSize: 12,
+                        fontWeight:
+                            isActive ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    Text(
+                      tr(descKey, lang),
+                      style: TextStyle(
+                        color: enabled ? Colors.white30 : Colors.white12,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget toggleRow(String labelKey, bool value, ValueChanged<bool> onChanged) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 1, horizontal: 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                tr(labelKey, lang),
+                style: const TextStyle(color: Colors.white60, fontSize: 12),
+              ),
+            ),
+            SizedBox(
+              height: 28,
+              child: Switch(
+                value: value,
+                onChanged: onChanged,
+                activeThumbColor: Colors.amber,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      width: 300,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: const Color(0x10FFFFFF),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          modeRadio('free', 'freeMode', 'freeModeDesc'),
+          modeRadio('auto', 'autoMode', 'autoModeDesc', enabled: false),
+          modeRadio('custom', 'customMode', 'customModeDesc'),
+          if (mode == 'custom') ...[
+            const SizedBox(height: 4),
+            toggleRow('noKanDora', config.noKanDora,
+                (v) => _updateConfig(noKanDora: v)),
+            toggleRow('noAkaDora', config.noAkaDora,
+                (v) => _updateConfig(noAkaDora: v)),
+            toggleRow('noUraDora', config.noUraDora,
+                (v) => _updateConfig(noUraDora: v)),
+            toggleRow('noIppatsu', config.noIppatsu,
+                (v) => _updateConfig(noIppatsu: v)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAiToggles(Lang lang) {
+    final config = ref.watch(gameConfigProvider);
+    final windLabels = [
+      tr('east', lang),
+      tr('south', lang),
+      tr('west', lang),
+      tr('north', lang),
+    ];
+
+    return Container(
+      width: 300,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: const Color(0x10FFFFFF),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            tr('aiPlayer', lang),
+            style: const TextStyle(
+              color: Colors.white60,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              for (int i = 1; i < 4; i++)
+                GestureDetector(
+                  onTap: () {
+                    final seats = List<bool>.from(config.aiSeats);
+                    seats[i] = !seats[i];
+                    _updateConfig(aiSeats: seats);
+                  },
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: config.aiSeats[i]
+                          ? const Color(0x40FFD54F)
+                          : const Color(0x10FFFFFF),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: config.aiSeats[i]
+                            ? Colors.amber
+                            : Colors.white24,
+                      ),
+                    ),
+                    child: Text(
+                      '${windLabels[i]} AI',
+                      style: TextStyle(
+                        color: config.aiSeats[i]
+                            ? Colors.amber
+                            : Colors.white54,
+                        fontSize: 12,
+                        fontWeight: config.aiSeats[i]
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ],

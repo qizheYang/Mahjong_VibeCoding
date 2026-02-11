@@ -223,6 +223,49 @@ const Map<String, Map<Lang, String>> _strings = {
   'suitSou': {Lang.zh: '索', Lang.en: 'Sou', Lang.ja: '索'},
   'missingSuitPrefix': {Lang.zh: '缺', Lang.en: '~', Lang.ja: '缺'},
 
+  // Riichi sub-modes
+  'freeMode': {Lang.zh: '自由模式', Lang.en: 'Free Mode', Lang.ja: 'フリーモード'},
+  'freeModeDesc': {
+    Lang.zh: '无规则限制, 手动报番',
+    Lang.en: 'No rules, manual scoring',
+    Lang.ja: 'ルールなし、手動申告',
+  },
+  'autoMode': {Lang.zh: '自动模式', Lang.en: 'Auto Mode', Lang.ja: 'オートモード'},
+  'autoModeDesc': {
+    Lang.zh: '自动判定/计番/算分 (开发中)',
+    Lang.en: 'Auto scoring (coming soon)',
+    Lang.ja: '自動計算(開発中)',
+  },
+  'customMode': {
+    Lang.zh: '自定义模式',
+    Lang.en: 'Custom Mode',
+    Lang.ja: 'カスタムモード',
+  },
+  'customModeDesc': {
+    Lang.zh: '自由模式 + 可选规则',
+    Lang.en: 'Free mode + rule toggles',
+    Lang.ja: 'フリー+ルール切替',
+  },
+  'noKanDora': {Lang.zh: '无杠宝牌', Lang.en: 'No Kan Dora', Lang.ja: '槓ドラなし'},
+  'noAkaDora': {Lang.zh: '无赤宝牌', Lang.en: 'No Red Fives', Lang.ja: '赤ドラなし'},
+  'noUraDora': {Lang.zh: '无里宝牌', Lang.en: 'No Ura Dora', Lang.ja: '裏ドラなし'},
+  'noIppatsu': {Lang.zh: '无一发', Lang.en: 'No Ippatsu', Lang.ja: '一発なし'},
+
+  // AI players
+  'aiPlayer': {Lang.zh: 'AI玩家', Lang.en: 'AI Player', Lang.ja: 'AIプレイヤー'},
+  'addAi': {Lang.zh: '添加AI', Lang.en: 'Add AI', Lang.ja: 'AI追加'},
+
+  // Sichuan win dialog
+  'sichuanHan': {Lang.zh: '番数 (1-5)', Lang.en: 'Han (1-5)', Lang.ja: '翻数 (1-5)'},
+  'perPlayer': {
+    Lang.zh: '每人付分',
+    Lang.en: 'Points per player',
+    Lang.ja: '各自の支払い',
+  },
+  'pass': {Lang.zh: '过', Lang.en: 'Pass', Lang.ja: 'パス'},
+  'wait': {Lang.zh: '等一下', Lang.en: 'Wait', Lang.ja: '待って'},
+  'skip': {Lang.zh: '跳过', Lang.en: 'Skip', Lang.ja: 'スキップ'},
+
   // Misc
   'connecting': {
     Lang.zh: '连接中...',

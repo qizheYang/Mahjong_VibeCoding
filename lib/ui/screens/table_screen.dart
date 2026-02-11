@@ -9,6 +9,7 @@ import '../../models/table_state.dart';
 import '../../models/table_action.dart';
 import '../../providers/multiplayer_provider.dart';
 import '../table/multiplayer_table_view.dart';
+import '../tiles/tile_widget.dart';
 import '../hud/table_action_bar.dart';
 import '../dialogs/win_declaration_dialog.dart';
 import '../dialogs/exchange_dialog.dart';
@@ -29,12 +30,36 @@ class _TableScreenState extends ConsumerState<TableScreen> {
   /// Timer for auto dora flip + dead wall draw after kan.
   Timer? _kanTimer;
 
+  /// Timer for auto-draw countdown.
+  Timer? _autoDrawTimer;
+
+  /// Periodic timer for updating the countdown display.
+  Timer? _countdownTicker;
+
+  /// Whether the auto-draw prompt is showing.
+  bool _showDrawPrompt = false;
+  bool _drawPromptCanPon = false;
+  bool _drawPromptCanChi = false;
+
+  /// Seconds remaining before auto-draw fires.
+  int _drawCountdown = 0;
+
+  /// Whether we already scheduled the prompt for the current turn.
+  bool _drawPromptScheduled = false;
+
+  /// Whether the pon/kan call prompt is showing for non-current-turn player.
+  bool _showPonPrompt = false;
+  bool _ponHoldSent = false;
+  bool _ponPromptScheduled = false;
+
   /// Tracks the last action log length to detect new actions.
   int _lastActionLogLength = 0;
 
   @override
   void dispose() {
     _kanTimer?.cancel();
+    _autoDrawTimer?.cancel();
+    _countdownTicker?.cancel();
     super.dispose();
   }
 
@@ -48,17 +73,80 @@ class _TableScreenState extends ConsumerState<TableScreen> {
     final autoDiscard = ref.watch(autoDiscardProvider);
     final autoFlower = ref.watch(autoFlowerProvider);
 
-    // Auto-draw: when it's my turn and I haven't drawn yet
-    if (tableState != null && autoDraw) {
+    // Watch hold state for auto-draw pausing
+    final holdSeat = ref.watch(holdProvider);
+
+    // Auto-draw: when it's my turn and I haven't drawn yet,
+    // show a 5-second countdown prompt. Player can hit "Draw" to skip.
+    // If another player called hold, pause the countdown.
+    if (tableState != null && autoDraw && _callMode == null) {
       final mySeatIdx = conn.mySeat ?? 0;
       if (tableState.currentTurn == mySeatIdx &&
           !tableState.hasDrawnThisTurn) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          ref
-              .read(multiplayerProvider.notifier)
-              .sendAction(TableAction.draw());
-        });
+        if (holdSeat != null) {
+          // Someone called hold — pause timer but keep prompt visible
+          if (_autoDrawTimer != null) {
+            _autoDrawTimer!.cancel();
+            _autoDrawTimer = null;
+            _countdownTicker?.cancel();
+            _countdownTicker = null;
+          }
+        } else if (!_showDrawPrompt && !_drawPromptScheduled) {
+          // Start fresh countdown
+          _drawPromptScheduled = true;
+          final ponOk = _canPon(tableState, mySeatIdx);
+          final chiOk = _canChi(tableState, mySeatIdx);
+          _startDrawCountdown();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            setState(() {
+              _showDrawPrompt = true;
+              _drawPromptCanPon = ponOk;
+              _drawPromptCanChi = chiOk;
+            });
+          });
+        } else if (_showDrawPrompt &&
+            _autoDrawTimer == null &&
+            _drawPromptScheduled) {
+          // Hold was just released — restart countdown
+          _startDrawCountdown();
+        }
+      } else {
+        _drawPromptScheduled = false;
+        _dismissDrawPrompt();
       }
+    } else {
+      _drawPromptScheduled = false;
+      _dismissDrawPrompt();
+    }
+
+    // Pon/kan prompt for non-current-turn players:
+    // When someone discards a tile I can pon, show Wait/Pon/Skip buttons.
+    if (tableState != null && _callMode == null && !_showDrawPrompt) {
+      final mySeatIdx = conn.mySeat ?? 0;
+      if (tableState.currentTurn != mySeatIdx &&
+          !tableState.hasDrawnThisTurn &&
+          tableState.lastDiscardedTileId != null &&
+          _canPon(tableState, mySeatIdx)) {
+        if (!_showPonPrompt && !_ponPromptScheduled) {
+          _ponPromptScheduled = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            setState(() {
+              _showPonPrompt = true;
+              _ponHoldSent = false;
+            });
+          });
+        }
+      } else {
+        _ponPromptScheduled = false;
+        _showPonPrompt = false;
+        _ponHoldSent = false;
+      }
+    } else {
+      _ponPromptScheduled = false;
+      _showPonPrompt = false;
+      _ponHoldSent = false;
     }
 
     // Auto-discard: when I drew a tile and auto-discard or riichi is active
@@ -119,6 +207,9 @@ class _TableScreenState extends ConsumerState<TableScreen> {
     }
 
     final mySeat = conn.mySeat ?? 0;
+
+    // Only show red dora tile faces in Riichi mode
+    TileWidget.showRedDora = tableState.config.isRiichi;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D3B0D),
@@ -202,18 +293,23 @@ class _TableScreenState extends ConsumerState<TableScreen> {
             ),
           ),
 
-          // Action bar at the bottom (no overlap with table)
-          TableActionBar(
-            tableState: tableState,
-            mySeat: mySeat,
-            callMode: _callMode,
-            selectedTileIds: _selectedTileIds,
-            onAction: _onAction,
-            onCallMode: _onCallMode,
-            onCancelCall: _onCancelCall,
-            onConfirmCall: _onConfirmCall,
-            lang: lang,
-          ),
+          // Draw/pon prompt or action bar at the bottom
+          if (_showDrawPrompt)
+            _buildDrawPrompt(lang, holdSeat)
+          else if (_showPonPrompt)
+            _buildPonPrompt(lang)
+          else
+            TableActionBar(
+              tableState: tableState,
+              mySeat: mySeat,
+              callMode: _callMode,
+              selectedTileIds: _selectedTileIds,
+              onAction: _onAction,
+              onCallMode: _onCallMode,
+              onCancelCall: _onCancelCall,
+              onConfirmCall: _onConfirmCall,
+              lang: lang,
+            ),
         ],
       ),
     );
@@ -243,13 +339,15 @@ class _TableScreenState extends ConsumerState<TableScreen> {
   void _startKanTimer() {
     _kanTimer?.cancel();
     final tableState = ref.read(tableStateProvider);
-    final hasDora = tableState?.config.hasDora ?? false;
+    final config = tableState?.config;
+    final hasDora = config?.hasDora ?? false;
+    final noKanDora = config?.noKanDora ?? false;
 
     _kanTimer = Timer(const Duration(seconds: 5), () {
       if (!mounted) return;
       final mp = ref.read(multiplayerProvider.notifier);
-      // Only auto reveal dora for Riichi mode
-      if (hasDora) {
+      // Only auto reveal dora for Riichi mode, skip if noKanDora is set
+      if (hasDora && !noKanDora) {
         mp.sendAction(TableAction.revealDora());
       }
       // Auto draw from dead wall (short delay to let server process dora first)
@@ -291,6 +389,8 @@ class _TableScreenState extends ConsumerState<TableScreen> {
 
     switch (action) {
       case 'draw':
+        _dismissDrawPrompt();
+        _drawPromptScheduled = false;
         mp.sendAction(TableAction.draw());
       case 'discard':
         if (_selectedTileIds.length == 1) {
@@ -336,7 +436,130 @@ class _TableScreenState extends ConsumerState<TableScreen> {
     }
   }
 
+  // ─── Call availability checks ────────────────────────────
+
+  /// Whether I can pon the last discard (2+ tiles of same kind in hand).
+  bool _canPon(TableState state, int mySeat) {
+    final discardId = state.lastDiscardedTileId;
+    final discardBy = state.lastDiscardedBy;
+    if (discardId == null || discardBy == null || discardBy == mySeat) {
+      return false;
+    }
+    final handIds = state.seats[mySeat].handTileIds;
+    if (handIds == null) return false;
+    final discardKind = discardId ~/ 4;
+    return handIds.where((id) => id ~/ 4 == discardKind).length >= 2;
+  }
+
+  /// Whether I can chi the last discard (sequence possible, prev player only).
+  bool _canChi(TableState state, int mySeat) {
+    if (state.config.isSichuan || state.config.isSuzhou) return false;
+    final discardId = state.lastDiscardedTileId;
+    final discardBy = state.lastDiscardedBy;
+    if (discardId == null || discardBy == null) return false;
+    if (discardBy != (mySeat - 1 + 4) % 4) return false;
+    final handIds = state.seats[mySeat].handTileIds;
+    if (handIds == null) return false;
+    final discardKind = discardId ~/ 4;
+    if (discardKind >= 27) return false; // can't chi honors
+    final suitOffset = (discardKind ~/ 9) * 9;
+    final num = discardKind % 9;
+    final handKinds = handIds.map((id) => id ~/ 4).toSet();
+    // num-2, num-1, num
+    if (num >= 2 &&
+        handKinds.contains(suitOffset + num - 2) &&
+        handKinds.contains(suitOffset + num - 1)) {
+      return true;
+    }
+    // num-1, num, num+1
+    if (num >= 1 &&
+        num <= 7 &&
+        handKinds.contains(suitOffset + num - 1) &&
+        handKinds.contains(suitOffset + num + 1)) {
+      return true;
+    }
+    // num, num+1, num+2
+    if (num <= 6 &&
+        handKinds.contains(suitOffset + num + 1) &&
+        handKinds.contains(suitOffset + num + 2)) {
+      return true;
+    }
+    return false;
+  }
+
+  void _dismissDrawPrompt() {
+    _autoDrawTimer?.cancel();
+    _autoDrawTimer = null;
+    _countdownTicker?.cancel();
+    _countdownTicker = null;
+    _showDrawPrompt = false;
+    _drawPromptCanPon = false;
+    _drawPromptCanChi = false;
+  }
+
+  void _drawNow() {
+    _dismissDrawPrompt();
+    _drawPromptScheduled = false;
+    setState(() {});
+    ref.read(multiplayerProvider.notifier).sendAction(TableAction.draw());
+  }
+
+  void _startDrawCountdown() {
+    _autoDrawTimer?.cancel();
+    _countdownTicker?.cancel();
+    _drawCountdown = 5;
+    _autoDrawTimer = Timer(const Duration(seconds: 5), () {
+      if (!mounted) return;
+      _dismissDrawPrompt();
+      _drawPromptScheduled = false;
+      setState(() {});
+      ref.read(multiplayerProvider.notifier).sendAction(TableAction.draw());
+    });
+    _countdownTicker = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) {
+        if (!mounted) return;
+        setState(() => _drawCountdown = (_drawCountdown - 1).clamp(0, 5));
+      },
+    );
+  }
+
+  void _skipPonPrompt() {
+    if (_ponHoldSent) {
+      ref
+          .read(multiplayerProvider.notifier)
+          .sendAction(TableAction.releaseHold());
+    }
+    setState(() {
+      _showPonPrompt = false;
+      _ponPromptScheduled = false;
+      _ponHoldSent = false;
+    });
+  }
+
+  void _sendHold() {
+    ref.read(multiplayerProvider.notifier).sendAction(TableAction.hold());
+    setState(() => _ponHoldSent = true);
+  }
+
+  void _onCallModeFromPon(String mode) {
+    if (_ponHoldSent) {
+      ref
+          .read(multiplayerProvider.notifier)
+          .sendAction(TableAction.releaseHold());
+    }
+    setState(() {
+      _showPonPrompt = false;
+      _ponPromptScheduled = false;
+      _ponHoldSent = false;
+      _callMode = mode;
+      _selectedTileIds.clear();
+    });
+  }
+
   void _onCallMode(String mode) {
+    _dismissDrawPrompt();
+    _drawPromptScheduled = false;
     setState(() {
       _callMode = mode;
       _selectedTileIds.clear();
@@ -395,21 +618,187 @@ class _TableScreenState extends ConsumerState<TableScreen> {
     });
   }
 
+  /// Auto-draw prompt: shows countdown + Draw button + optional Pon/Chi.
+  Widget _buildDrawPrompt(Lang lang, int? holdSeat) {
+    final isPaused = holdSeat != null;
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0x001A1A3A), Color(0xEE1A1A3A)],
+        ),
+      ),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 12),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            _callPromptBtn(
+              label: isPaused
+                  ? '${tr('draw', lang)} ⏸'
+                  : '${tr('draw', lang)} ($_drawCountdown)',
+              colors: isPaused
+                  ? const [Color(0xFF5A5A6A), Color(0xFF3A3A4A)]
+                  : const [Color(0xFF1565C0), Color(0xFF0D47A1)],
+              onTap: _drawNow,
+            ),
+            if (_drawPromptCanChi) ...[
+              const SizedBox(width: 10),
+              _callPromptBtn(
+                label: tr('chi', lang),
+                colors: const [Color(0xFF43A047), Color(0xFF2E7D32)],
+                onTap: () => _onCallMode('chi'),
+              ),
+            ],
+            if (_drawPromptCanPon) ...[
+              const SizedBox(width: 10),
+              _callPromptBtn(
+                label: tr('pon', lang),
+                colors: const [Color(0xFF00897B), Color(0xFF00695C)],
+                onTap: () => _onCallMode('pon'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Pon prompt for non-current-turn players: Wait/Pon/Skip.
+  Widget _buildPonPrompt(Lang lang) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0x001A1A3A), Color(0xEE1A1A3A)],
+        ),
+      ),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 12),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            _callPromptBtn(
+              label: tr('skip', lang),
+              colors: const [Color(0xFF5A5A6A), Color(0xFF3A3A4A)],
+              onTap: _skipPonPrompt,
+            ),
+            if (!_ponHoldSent) ...[
+              const SizedBox(width: 10),
+              _callPromptBtn(
+                label: tr('wait', lang),
+                colors: const [Color(0xFFE65100), Color(0xFFBF360C)],
+                onTap: _sendHold,
+              ),
+            ],
+            const SizedBox(width: 10),
+            _callPromptBtn(
+              label: tr('pon', lang),
+              colors: const [Color(0xFF00897B), Color(0xFF00695C)],
+              onTap: () => _onCallModeFromPon('pon'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _callPromptBtn({
+    required String label,
+    required List<Color> colors,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 80),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: colors,
+          ),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.3),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: colors[0].withValues(alpha: 0.4),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 2,
+          ),
+        ),
+      ),
+    );
+  }
+
   // ─── Dialogs ─────────────────────────────────────────────
 
   void _showWinDialog(Lang lang) {
-    showDialog(
-      context: context,
-      builder: (ctx) => WinDeclarationDialog(
-        lang: lang,
-        onDeclare: (isTsumo, han, fu) {
-          Navigator.of(ctx).pop();
-          ref
-              .read(multiplayerProvider.notifier)
-              .sendAction(TableAction.declareWin(isTsumo, han, fu));
-        },
-      ),
-    );
+    final tableState = ref.read(tableStateProvider);
+    final config = tableState?.config;
+
+    if (config != null && config.isSichuan) {
+      // Sichuan: han 1-5, scoring is 2^han
+      showDialog(
+        context: context,
+        builder: (ctx) => SichuanWinDialog(
+          lang: lang,
+          onDeclare: (isTsumo, han) {
+            Navigator.of(ctx).pop();
+            ref
+                .read(multiplayerProvider.notifier)
+                .sendAction(TableAction.declareWinSichuan(isTsumo, han));
+          },
+        ),
+      );
+    } else if (config != null && !config.isRiichi) {
+      // Guobiao, Shanghai, Suzhou, etc.: direct point entry
+      showDialog(
+        context: context,
+        builder: (ctx) => DirectWinDialog(
+          lang: lang,
+          onDeclare: (isTsumo, perPlayer) {
+            Navigator.of(ctx).pop();
+            ref
+                .read(multiplayerProvider.notifier)
+                .sendAction(TableAction.declareWinDirect(isTsumo, perPlayer));
+          },
+        ),
+      );
+    } else {
+      // Riichi: han + fu
+      showDialog(
+        context: context,
+        builder: (ctx) => WinDeclarationDialog(
+          lang: lang,
+          onDeclare: (isTsumo, han, fu) {
+            Navigator.of(ctx).pop();
+            ref
+                .read(multiplayerProvider.notifier)
+                .sendAction(TableAction.declareWin(isTsumo, han, fu));
+          },
+        ),
+      );
+    }
   }
 
   void _showObjectionDialog(Lang lang) {

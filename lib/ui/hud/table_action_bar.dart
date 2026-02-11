@@ -67,7 +67,7 @@ class TableActionBar extends StatelessWidget {
       playActions.add(_callBtn(tr('pon', lang), 'pon', Colors.teal));
     }
     playActions.add(_kanMenuBtn(enableOpen: canCallOther));
-    if (hasSelection && !seat.isRiichi) {
+    if (hasSelection && !seat.isRiichi && tableState.config.isRiichi) {
       playActions.add(_actionBtn(tr('riichi', lang), 'riichi', Colors.red));
     }
     playActions.add(_actionBtn(tr('win', lang), 'win', Colors.amber));

@@ -11,11 +11,29 @@ class GameConfig {
   final bool hasBaida; // Shanghai 百搭 wild card
   final int startingPoints;
 
+  // Riichi sub-mode: 'free' | 'auto' | 'custom'
+  final String riichiMode;
+
+  // Custom mode toggles (only relevant when riichiMode == 'custom')
+  final bool noKanDora;
+  final bool noAkaDora;
+  final bool noUraDora;
+  final bool noIppatsu;
+
+  // AI player seats (index 0 = host, always false)
+  final List<bool> aiSeats;
+
   const GameConfig({
     this.tileCount = 136,
     this.isRiichi = true,
     this.hasBaida = false,
     this.startingPoints = 25000,
+    this.riichiMode = 'free',
+    this.noKanDora = false,
+    this.noAkaDora = false,
+    this.noUraDora = false,
+    this.noIppatsu = false,
+    this.aiSeats = const [false, false, false, false],
   });
 
   /// Whether this is Sichuan mahjong (108 tiles, 缺一门, no chi).
@@ -55,6 +73,15 @@ class GameConfig {
   /// Whether this is Suzhou mahjong (152 tiles, no chi, 百搭).
   bool get isSuzhou => tileCount == 152;
 
+  /// Whether Riichi auto mode is active.
+  bool get isAutoMode => isRiichi && riichiMode == 'auto';
+
+  /// Whether Riichi custom mode is active.
+  bool get isCustomMode => isRiichi && riichiMode == 'custom';
+
+  /// Whether any AI players are configured.
+  bool get hasAiPlayers => aiSeats.any((a) => a);
+
   /// Check if a tile ID represents a flower in this config.
   /// In Suzhou, 百搭 tiles (144-147) stay in hand as wild cards.
   bool isFlowerTile(int tileId) {
@@ -75,6 +102,12 @@ class GameConfig {
         'isRiichi': isRiichi,
         'hasBaida': hasBaida,
         'startingPoints': startingPoints,
+        'riichiMode': riichiMode,
+        'noKanDora': noKanDora,
+        'noAkaDora': noAkaDora,
+        'noUraDora': noUraDora,
+        'noIppatsu': noIppatsu,
+        'aiSeats': aiSeats,
       };
 
   factory GameConfig.fromJson(Map<String, dynamic> json) {
@@ -83,6 +116,15 @@ class GameConfig {
       isRiichi: json['isRiichi'] as bool? ?? true,
       hasBaida: json['hasBaida'] as bool? ?? false,
       startingPoints: json['startingPoints'] as int? ?? 25000,
+      riichiMode: json['riichiMode'] as String? ?? 'free',
+      noKanDora: json['noKanDora'] as bool? ?? false,
+      noAkaDora: json['noAkaDora'] as bool? ?? false,
+      noUraDora: json['noUraDora'] as bool? ?? false,
+      noIppatsu: json['noIppatsu'] as bool? ?? false,
+      aiSeats: (json['aiSeats'] as List<dynamic>?)
+              ?.map((e) => e as bool)
+              .toList() ??
+          const [false, false, false, false],
     );
   }
 }

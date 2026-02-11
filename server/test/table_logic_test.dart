@@ -618,6 +618,70 @@ void main() {
       }
       expect(state.doraRevealed, 5); // capped at 5
     });
+
+    test('noKanDora blocks additional reveals after initial', () {
+      final state = _dealtState(config: const GameConfig(
+        tileCount: 136,
+        isRiichi: true,
+        riichiMode: 'custom',
+        noKanDora: true,
+      ));
+      expect(state.doraRevealed, 1); // initial dora
+
+      TableLogic.revealDora(state);
+      expect(state.doraRevealed, 1); // blocked by noKanDora
+    });
+  });
+
+  group('TableLogic.declareWinSichuan', () {
+    test('creates sichuan win proposal with 2^han payments', () {
+      final state = _dealtState(config: const GameConfig(
+        tileCount: 108,
+        isRiichi: false,
+      ));
+      TableLogic.declareWinSichuan(state, 0, true, 3);
+
+      expect(state.pendingWin, isNotNull);
+      expect(state.pendingWin!.seatIndex, 0);
+      expect(state.pendingWin!.isTsumo, true);
+      // 2^3 = 8 per player, tsumo total = 24
+      expect(state.pendingWin!.totalPoints, 24);
+      expect(state.pendingWin!.payments[1], -8);
+      expect(state.pendingWin!.payments[2], -8);
+      expect(state.pendingWin!.payments[3], -8);
+    });
+  });
+
+  group('TableLogic.declareWinDirect', () {
+    test('creates direct win proposal', () {
+      final state = _dealtState(config: const GameConfig(
+        tileCount: 136,
+        isRiichi: false,
+      ));
+      TableLogic.declareWinDirect(state, 2, true, 10);
+
+      expect(state.pendingWin, isNotNull);
+      expect(state.pendingWin!.seatIndex, 2);
+      expect(state.pendingWin!.totalPoints, 30);
+      expect(state.pendingWin!.payments[0], -10);
+      expect(state.pendingWin!.payments[1], -10);
+      expect(state.pendingWin!.payments[3], -10);
+    });
+
+    test('direct ron: only loser pays', () {
+      final state = _dealtState(config: const GameConfig(
+        tileCount: 136,
+        isRiichi: false,
+      ));
+      // Set up a last discard
+      state.lastDiscardedBy = 1;
+      TableLogic.declareWinDirect(state, 0, false, 8);
+
+      expect(state.pendingWin!.payments[0], 8);
+      expect(state.pendingWin!.payments[1], -8);
+      expect(state.pendingWin!.payments[2], 0);
+      expect(state.pendingWin!.payments[3], 0);
+    });
   });
 
   group('TableLogic.newRound', () {
