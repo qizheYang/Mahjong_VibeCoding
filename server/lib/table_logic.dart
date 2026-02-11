@@ -76,6 +76,8 @@ class TableLogic {
   }
 
   /// Draw from the back of the live wall (after kan).
+  /// For Riichi: also transfers one tile from live wall end to dead wall
+  /// to keep the dead wall at its original size (14 tiles).
   static void drawDeadWall(ServerState state, int seat) {
     if (state.liveTileIds.isEmpty) return;
     if (state.hasDrawnThisTurn) return;
@@ -83,6 +85,13 @@ class TableLogic {
     state.seats[seat].handTileIds.add(tileId);
     state.seats[seat].justDrewTileId = tileId;
     state.hasDrawnThisTurn = true;
+
+    // Riichi: transfer one more tile from live wall to dead wall
+    // to maintain dead wall at constant size
+    if (state.config.hasDeadWall && state.liveTileIds.isNotEmpty) {
+      state.deadWallTileIds.add(state.liveTileIds.removeLast());
+    }
+
     state.addLog(seat, 'drawDeadWall');
   }
 

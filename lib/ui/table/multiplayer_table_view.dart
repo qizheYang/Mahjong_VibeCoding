@@ -131,6 +131,7 @@ class MultiplayerTableView extends StatelessWidget {
       deadWallCount: tableState.deadWallCount,
       doraIndicators: tableState.doraIndicators,
       doraRevealed: tableState.doraRevealed,
+      hasDeadWall: tableState.config.hasDeadWall,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

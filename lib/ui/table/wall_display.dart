@@ -21,6 +21,7 @@ class WallDisplay extends StatefulWidget {
   final int deadWallCount;
   final List<Tile> doraIndicators;
   final int doraRevealed;
+  final bool hasDeadWall;
   final Widget child;
 
   const WallDisplay({
@@ -29,6 +30,7 @@ class WallDisplay extends StatefulWidget {
     required this.deadWallCount,
     required this.doraIndicators,
     required this.doraRevealed,
+    this.hasDeadWall = true,
     required this.child,
   });
 
@@ -40,8 +42,9 @@ class _WallDisplayState extends State<WallDisplay>
     with SingleTickerProviderStateMixin {
   static const _perSide = 17;
   static const _deadWallStart = 34;
-  static const _livePositions = 61;
   static const _gap = 1.0;
+
+  int get _livePositions => widget.hasDeadWall ? 61 : 68;
 
   late AnimationController _drawAnim;
   int _animStack = -1;
@@ -87,7 +90,9 @@ class _WallDisplayState extends State<WallDisplay>
   int _globalToDrawOrder(int g) {
     if (g >= 41 && g <= 50) return g - 41;
     if (g >= 51 && g <= 67) return 10 + (g - 51);
-    if (g >= 0 && g <= 33) return 27 + g;
+    // With dead wall: positions 0-33 are live; without: 0-40 are live
+    final maxLive = widget.hasDeadWall ? 33 : 40;
+    if (g >= 0 && g <= maxLive) return 27 + g;
     return -1;
   }
 
@@ -200,6 +205,15 @@ class _WallDisplayState extends State<WallDisplay>
   }
 
   Widget _buildBottomSide(TileSize ts) {
+    if (!widget.hasDeadWall) {
+      // No dead wall: all 17 positions are live (global 50 down to 34)
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(
+            _perSide, (i) => _liveStack(50 - i, ts, vertical: false)),
+      );
+    }
+
     final children = <Widget>[];
 
     // Live wall portion (global 50 down to 41)

@@ -208,8 +208,8 @@ class _TableScreenState extends ConsumerState<TableScreen> {
 
     final mySeat = conn.mySeat ?? 0;
 
-    // Only show red dora tile faces in Riichi mode
-    TileWidget.showRedDora = tableState.config.isRiichi;
+    // Only show red dora tile faces in Riichi mode, respect noAkaDora toggle
+    TileWidget.showRedDora = tableState.config.isRiichi && !tableState.config.noAkaDora;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D3B0D),
@@ -350,10 +350,15 @@ class _TableScreenState extends ConsumerState<TableScreen> {
       if (hasDora && !noKanDora) {
         mp.sendAction(TableAction.revealDora());
       }
-      // Auto draw from dead wall (short delay to let server process dora first)
+      // Draw after kan: Sichuan draws from front, all others from back
       Future.delayed(const Duration(milliseconds: 200), () {
         if (!mounted) return;
-        mp.sendAction(TableAction.drawDeadWall());
+        final currentConfig = ref.read(tableStateProvider)?.config;
+        if (currentConfig?.isSichuan == true) {
+          mp.sendAction(TableAction.draw());
+        } else {
+          mp.sendAction(TableAction.drawDeadWall());
+        }
       });
       _kanTimer = null;
     });
