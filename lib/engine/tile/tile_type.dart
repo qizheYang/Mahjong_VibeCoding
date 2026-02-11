@@ -1,1 +1,1 @@
-enum TileType { man, pin, sou, wind, dragon }
+enum TileType { man, pin, sou, wind, dragon, flower }

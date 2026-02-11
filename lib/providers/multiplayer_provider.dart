@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../i18n/strings.dart';
+import '../models/game_config.dart';
 import '../models/table_state.dart';
 import '../models/table_action.dart';
 
@@ -121,8 +122,8 @@ class MultiplayerNotifier extends StateNotifier<RoomConnection> {
     _send(ServerMessage.joinRoom(code, nickname));
   }
 
-  void startGame() {
-    _send(ServerMessage.startGame());
+  void startGame({GameConfig? config}) {
+    _send(ServerMessage.startGame(config: config?.toJson()));
   }
 
   void sendAction(String actionJson) {
@@ -219,3 +220,6 @@ final objectionProvider = StateProvider<ObjectionNotification?>((ref) => null);
 final autoDrawProvider = StateProvider<bool>((ref) => false);
 
 final autoDiscardProvider = StateProvider<bool>((ref) => false);
+
+final gameConfigProvider =
+    StateProvider<GameConfig>((ref) => const GameConfig());

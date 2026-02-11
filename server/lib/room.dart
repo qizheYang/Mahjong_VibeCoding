@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:math';
 
+import 'game_config.dart';
 import 'models.dart';
 import 'table_logic.dart';
 
@@ -89,6 +90,11 @@ class Room {
         _send(ws, {'type': 'error', 'message': '只有房主可以开始'});
         return;
       }
+      // Apply game config if provided
+      final configJson = msg['config'] as Map<String, dynamic>?;
+      if (configJson != null) {
+        _state.applyConfig(GameConfig.fromJson(configJson));
+      }
       TableLogic.deal(_state, _random);
       _broadcastState();
       return;
@@ -161,6 +167,8 @@ class Room {
       case 'adjustScore':
         TableLogic.adjustScore(
             _state, msg['targetSeat'] as int, msg['amount'] as int);
+      case 'drawFlower':
+        TableLogic.drawFlower(_state, seat, msg['tileId'] as int);
       default:
         return;
     }

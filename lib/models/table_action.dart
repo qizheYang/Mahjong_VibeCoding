@@ -63,6 +63,10 @@ class TableAction {
   static String adjustScore(int targetSeat, int amount) =>
       _encode('adjustScore', {'targetSeat': targetSeat, 'amount': amount});
 
+  /// Draw flower (补花): move flower tile from hand to flowers, draw replacement.
+  static String drawFlower(int tileId) =>
+      _encode('drawFlower', {'tileId': tileId});
+
   static String _encode(String action, [Map<String, dynamic>? extra]) {
     final msg = <String, dynamic>{
       'type': 'action',
@@ -85,5 +89,9 @@ class ServerMessage {
   static String joinRoom(String code, String nickname) =>
       jsonEncode({'type': 'join', 'code': code, 'nickname': nickname});
 
-  static String startGame() => jsonEncode({'type': 'start'});
+  static String startGame({Map<String, dynamic>? config}) => jsonEncode({
+        'type': 'start',
+        // ignore: use_null_aware_elements
+        if (config != null) 'config': config,
+      });
 }

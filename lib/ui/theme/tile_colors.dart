@@ -23,6 +23,8 @@ class TileColors {
         return const Color(0xFF212121);
       case TileType.dragon:
         return const Color(0xFF212121);
+      case TileType.flower:
+        return const Color(0xFFC62828);
     }
   }
 
@@ -38,6 +40,8 @@ class TileColors {
         return '';
       case TileType.dragon:
         return '';
+      case TileType.flower:
+        return '花';
     }
   }
 
@@ -51,6 +55,8 @@ class TileColors {
         return const ['東', '南', '西', '北'][number - 1];
       case TileType.dragon:
         return const ['　', '發', '中'][number - 1]; // haku is blank
+      case TileType.flower:
+        return '花';
     }
   }
 

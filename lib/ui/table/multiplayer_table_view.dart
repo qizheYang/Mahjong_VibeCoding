@@ -5,6 +5,7 @@ import '../../i18n/strings.dart';
 import '../../models/table_state.dart';
 import '../tiles/tile_back.dart';
 import '../tiles/tile_size.dart';
+import '../tiles/tile_widget.dart';
 import 'discard_pool.dart';
 import 'hand_display.dart';
 import 'meld_display.dart';
@@ -357,6 +358,10 @@ class MultiplayerTableView extends StatelessWidget {
           SizedBox(width: handSize.width * 0.3),
           MeldDisplay(melds: melds, tileSize: meldSize),
         ],
+        if (seat.flowerTileIds.isNotEmpty) ...[
+          SizedBox(width: handSize.width * 0.3),
+          _flowerDisplay(seat.flowerTiles, meldSize),
+        ],
       ],
     );
   }
@@ -399,7 +404,24 @@ class MultiplayerTableView extends StatelessWidget {
           SizedBox(width: handSize.width * 0.3),
           MeldDisplay(melds: melds, tileSize: meldSize),
         ],
+        if (seat.flowerTileIds.isNotEmpty) ...[
+          SizedBox(width: handSize.width * 0.3),
+          _flowerDisplay(seat.flowerTiles, meldSize),
+        ],
       ],
+    );
+  }
+
+  /// Render face-up flower tiles next to melds.
+  Widget _flowerDisplay(List<Tile> flowers, TileSize size) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: flowers
+          .map((t) => Padding(
+                padding: EdgeInsets.symmetric(horizontal: size.spacing / 2),
+                child: TileWidget(tile: t, size: size),
+              ))
+          .toList(),
     );
   }
 

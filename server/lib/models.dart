@@ -1,5 +1,7 @@
 // Server-side state models for the mahjong virtual table.
 
+import 'game_config.dart';
+
 class ServerState {
   List<int> liveTileIds = [];
   List<int> deadWallTileIds = [];
@@ -21,6 +23,13 @@ class ServerState {
   WinProposal? pendingWin;
   ExchangeProposal? pendingExchange;
   List<ActionLogEntry> actionLog = [];
+  GameConfig config = const GameConfig();
+
+  /// Apply config and reset scores to starting points.
+  void applyConfig(GameConfig newConfig) {
+    config = newConfig;
+    scores = List.filled(4, newConfig.startingPoints);
+  }
 
   Map<String, dynamic> toJsonForSeat(int viewerSeat) {
     return {
@@ -48,6 +57,7 @@ class ServerState {
         'pendingExchange': pendingExchange!.toJson(),
       'actionLog':
           actionLog.map((e) => e.toJson()).toList(),
+      'config': config.toJson(),
     };
   }
 
@@ -65,7 +75,7 @@ class ServerState {
   void addLog(int seat, String action, {int? tileId, String? detail}) {
     actionLog.add(ActionLogEntry(
       seat: seat,
-      nickname: nicknames[seat],
+      nickname: seat >= 0 && seat < 4 ? nicknames[seat] : '',
       action: action,
       tileId: tileId,
       detail: detail,
@@ -84,6 +94,7 @@ class SeatData {
   bool isRiichi = false;
   bool handRevealed = false;
   int? justDrewTileId;
+  List<int> flowerTileIds = []; // face-up flower tiles
 
   Map<String, dynamic> toJson({required bool isViewer}) {
     final showHand = isViewer || handRevealed;
@@ -96,6 +107,7 @@ class SeatData {
       'handRevealed': handRevealed,
       if (isViewer && justDrewTileId != null)
         'justDrewTileId': justDrewTileId,
+      'flowerTileIds': flowerTileIds,
     };
   }
 
@@ -106,6 +118,7 @@ class SeatData {
     isRiichi = false;
     handRevealed = false;
     justDrewTileId = null;
+    flowerTileIds.clear();
   }
 }
 

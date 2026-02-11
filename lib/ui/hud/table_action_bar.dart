@@ -71,6 +71,13 @@ class TableActionBar extends StatelessWidget {
       playActions.add(_actionBtn(tr('riichi', lang), 'riichi', Colors.red));
     }
     playActions.add(_actionBtn(tr('win', lang), 'win', Colors.amber));
+    // 补花: only for 144/152 variants when a tile is selected
+    if (hasSelection &&
+        (tableState.config.hasFlowers ||
+            tableState.config.dragonsAreFlowers)) {
+      playActions.add(
+          _actionBtn(tr('drawFlower', lang), 'drawFlower', Colors.pink));
+    }
 
     // Row 2: Management actions
     final mgmtActions = <Widget>[

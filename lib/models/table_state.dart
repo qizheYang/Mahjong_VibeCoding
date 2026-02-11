@@ -1,5 +1,6 @@
 import '../engine/tile/tile.dart';
 import '../engine/state/meld.dart';
+import 'game_config.dart';
 
 /// Client-side table state received from server.
 class TableState {
@@ -24,6 +25,7 @@ class TableState {
   final WinProposal? pendingWin;
   final ExchangeProposal? pendingExchange;
   final List<ActionLogEntry> actionLog;
+  final GameConfig config;
 
   const TableState({
     required this.wallRemaining,
@@ -47,6 +49,7 @@ class TableState {
     this.pendingWin,
     this.pendingExchange,
     required this.actionLog,
+    this.config = const GameConfig(),
   });
 
   factory TableState.fromJson(Map<String, dynamic> json) {
@@ -84,6 +87,9 @@ class TableState {
                   ActionLogEntry.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      config: json['config'] != null
+          ? GameConfig.fromJson(json['config'] as Map<String, dynamic>)
+          : const GameConfig(),
     );
   }
 
@@ -104,6 +110,7 @@ class SeatState {
   final bool isRiichi;
   final bool handRevealed;
   final int? justDrewTileId;
+  final List<int> flowerTileIds; // face-up flower tiles
 
   const SeatState({
     this.handTileIds,
@@ -113,6 +120,7 @@ class SeatState {
     required this.isRiichi,
     required this.handRevealed,
     this.justDrewTileId,
+    this.flowerTileIds = const [],
   });
 
   factory SeatState.fromJson(Map<String, dynamic> json) {
@@ -130,6 +138,8 @@ class SeatState {
       isRiichi: json['isRiichi'] as bool,
       handRevealed: json['handRevealed'] as bool? ?? false,
       justDrewTileId: json['justDrewTileId'] as int?,
+      flowerTileIds:
+          (json['flowerTileIds'] as List?)?.cast<int>() ?? const [],
     );
   }
 
@@ -140,6 +150,10 @@ class SeatState {
   /// Just-drew tile as Tile object.
   Tile? get justDrew =>
       justDrewTileId != null ? Tile(justDrewTileId!) : null;
+
+  /// Flower tiles as Tile objects.
+  List<Tile> get flowerTiles =>
+      flowerTileIds.map((id) => Tile(id)).toList();
 }
 
 class DiscardEntry {

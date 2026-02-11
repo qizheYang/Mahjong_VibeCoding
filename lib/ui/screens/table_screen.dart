@@ -191,11 +191,16 @@ class _TableScreenState extends ConsumerState<TableScreen> {
 
   void _startKanTimer() {
     _kanTimer?.cancel();
+    final tableState = ref.read(tableStateProvider);
+    final hasDora = tableState?.config.hasDora ?? false;
+
     _kanTimer = Timer(const Duration(seconds: 5), () {
       if (!mounted) return;
       final mp = ref.read(multiplayerProvider.notifier);
-      // Auto reveal dora
-      mp.sendAction(TableAction.revealDora());
+      // Only auto reveal dora for Riichi mode
+      if (hasDora) {
+        mp.sendAction(TableAction.revealDora());
+      }
       // Auto draw from dead wall (short delay to let server process dora first)
       Future.delayed(const Duration(milliseconds: 200), () {
         if (!mounted) return;
@@ -244,6 +249,11 @@ class _TableScreenState extends ConsumerState<TableScreen> {
       case 'riichi':
         if (_selectedTileIds.length == 1) {
           mp.sendAction(TableAction.riichi(_selectedTileIds.first));
+          setState(() => _selectedTileIds.clear());
+        }
+      case 'drawFlower':
+        if (_selectedTileIds.length == 1) {
+          mp.sendAction(TableAction.drawFlower(_selectedTileIds.first));
           setState(() => _selectedTileIds.clear());
         }
       case 'sortHand':

@@ -141,6 +141,60 @@ const Map<String, Map<Lang, String>> _strings = {
     Lang.ja: '自動打牌',
   },
 
+  // Game config
+  'tileCount': {Lang.zh: '牌数', Lang.en: 'Tiles', Lang.ja: '牌数'},
+  'variant': {Lang.zh: '玩法', Lang.en: 'Variant', Lang.ja: 'ルール'},
+  'startingPts': {Lang.zh: '起始分', Lang.en: 'Start Pts', Lang.ja: '持ち点'},
+  'sichuan': {Lang.zh: '四川麻将', Lang.en: 'Sichuan', Lang.ja: '四川麻雀'},
+  'riichiVariant': {
+    Lang.zh: '日本立直',
+    Lang.en: 'Riichi',
+    Lang.ja: 'リーチ麻雀',
+  },
+  'guobiao': {Lang.zh: '国标麻将', Lang.en: 'Guobiao', Lang.ja: '国標麻雀'},
+  'guobiaoFlowers': {
+    Lang.zh: '国标(花牌)',
+    Lang.en: 'Guobiao+Flowers',
+    Lang.ja: '国標(花牌)',
+  },
+  'suzhouShanghai': {
+    Lang.zh: '苏州/上海',
+    Lang.en: 'Suzhou/Shanghai',
+    Lang.ja: '蘇州/上海',
+  },
+  'sichuanDesc': {
+    Lang.zh: '仅数牌(108张), 无宝牌',
+    Lang.en: 'Numbers only (108), no dora',
+    Lang.ja: '数牌のみ(108枚), ドラなし',
+  },
+  'riichiDesc': {
+    Lang.zh: '标准136张, 翻宝牌',
+    Lang.en: 'Standard 136, dora flip',
+    Lang.ja: '標準136枚, ドラあり',
+  },
+  'guobiaoDesc': {
+    Lang.zh: '标准136张, 无宝牌',
+    Lang.en: 'Standard 136, no dora',
+    Lang.ja: '標準136枚, ドラなし',
+  },
+  'guobiaoFlowersDesc': {
+    Lang.zh: '144张(含春夏秋冬梅兰竹菊)',
+    Lang.en: '144 tiles (with flowers)',
+    Lang.ja: '144枚(花牌あり)',
+  },
+  'suzhouShanghaiDesc': {
+    Lang.zh: '152张, 中发白也是花牌',
+    Lang.en: '152 tiles, dragons are flowers',
+    Lang.ja: '152枚, 三元牌も花牌',
+  },
+  'drawFlower': {Lang.zh: '补花', Lang.en: 'Flower', Lang.ja: '補花'},
+  'flowers': {Lang.zh: '花', Lang.en: 'Flowers', Lang.ja: '花'},
+  'gameConfig': {
+    Lang.zh: '游戏设置',
+    Lang.en: 'Game Settings',
+    Lang.ja: 'ゲーム設定',
+  },
+
   // Misc
   'connecting': {
     Lang.zh: '连接中...',

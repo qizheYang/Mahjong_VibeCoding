@@ -9,14 +9,24 @@ class TableLogic {
   TableLogic._();
 
   /// Shuffle wall and deal tiles to all players.
+  /// Uses the config to determine which tiles to include.
   static void deal(ServerState state, Random random) {
-    final allIds = List.generate(136, (i) => i);
+    final config = state.config;
+    final allIds = config.generateTileIds();
     allIds.shuffle(random);
 
-    // Dead wall: last 14 tiles
-    state.deadWallTileIds = allIds.sublist(122);
-    state.liveTileIds = allIds.sublist(0, 122);
-    state.doraRevealed = 1;
+    // Dead wall setup based on variant
+    if (config.hasDeadWall) {
+      final deadSize = config.deadWallSize;
+      state.deadWallTileIds = allIds.sublist(allIds.length - deadSize);
+      state.liveTileIds = allIds.sublist(0, allIds.length - deadSize);
+    } else {
+      state.deadWallTileIds = [];
+      state.liveTileIds = allIds;
+    }
+
+    // Dora: start at 1 for Riichi, 0 for others
+    state.doraRevealed = config.hasDora ? 1 : 0;
 
     // Reset seats
     for (int i = 0; i < 4; i++) {
@@ -50,7 +60,7 @@ class TableLogic {
   /// Draw a tile from the live wall (front).
   static void draw(ServerState state, int seat) {
     if (state.liveTileIds.isEmpty) return;
-    if (state.hasDrawnThisTurn) return; // can only draw once per turn
+    if (state.hasDrawnThisTurn) return;
     final tileId = state.liveTileIds.removeAt(0);
     state.seats[seat].handTileIds.add(tileId);
     state.seats[seat].justDrewTileId = tileId;
@@ -61,12 +71,32 @@ class TableLogic {
   /// Draw from the back of the live wall (after kan).
   static void drawDeadWall(ServerState state, int seat) {
     if (state.liveTileIds.isEmpty) return;
-    if (state.hasDrawnThisTurn) return; // can only draw once per turn
+    if (state.hasDrawnThisTurn) return;
     final tileId = state.liveTileIds.removeLast();
     state.seats[seat].handTileIds.add(tileId);
     state.seats[seat].justDrewTileId = tileId;
     state.hasDrawnThisTurn = true;
     state.addLog(seat, 'drawDeadWall');
+  }
+
+  /// Draw flower (补花): move flower tile from hand to flowers,
+  /// then draw replacement from back of wall.
+  static void drawFlower(ServerState state, int seat, int tileId) {
+    final seatData = state.seats[seat];
+    if (!seatData.handTileIds.contains(tileId)) return;
+
+    // Move tile from hand to flower display
+    seatData.handTileIds.remove(tileId);
+    seatData.flowerTileIds.add(tileId);
+
+    // Draw replacement from back of live wall
+    if (state.liveTileIds.isNotEmpty) {
+      final replacement = state.liveTileIds.removeLast();
+      seatData.handTileIds.add(replacement);
+      seatData.justDrewTileId = replacement;
+    }
+
+    state.addLog(seat, 'drawFlower', tileId: tileId);
   }
 
   /// Discard a tile from hand.
@@ -82,7 +112,7 @@ class TableLogic {
     state.lastDiscardedBy = seat;
     state.lastDiscardedTileId = tileId;
     state.currentTurn = (seat + 1) % 4;
-    state.hasDrawnThisTurn = false; // next player hasn't drawn yet
+    state.hasDrawnThisTurn = false;
     state.addLog(seat, 'discard', tileId: tileId);
   }
 
@@ -92,16 +122,13 @@ class TableLogic {
     final discardedBy = state.lastDiscardedBy;
     if (discardTileId == null || discardedBy == null) return;
 
-    // Remove discard from discarder's pool
     state.seats[discardedBy].discards
         .removeWhere((d) => d.tileId == discardTileId);
 
-    // Remove hand tiles
     for (final id in handTileIds) {
       state.seats[seat].handTileIds.remove(id);
     }
 
-    // Create meld
     final allTiles = [...handTileIds, discardTileId];
     allTiles.sort((a, b) => (a ~/ 4).compareTo(b ~/ 4));
     state.seats[seat].melds.add(MeldData(
@@ -114,7 +141,7 @@ class TableLogic {
     state.lastDiscardedBy = null;
     state.lastDiscardedTileId = null;
     state.currentTurn = seat;
-    state.hasDrawnThisTurn = true; // call acts as draw
+    state.hasDrawnThisTurn = true;
     state.seats[seat].justDrewTileId = null;
     state.addLog(seat, 'chi', tileId: discardTileId);
   }
@@ -142,7 +169,7 @@ class TableLogic {
     state.lastDiscardedBy = null;
     state.lastDiscardedTileId = null;
     state.currentTurn = seat;
-    state.hasDrawnThisTurn = true; // call acts as draw
+    state.hasDrawnThisTurn = true;
     state.seats[seat].justDrewTileId = null;
     state.addLog(seat, 'pon', tileId: discardTileId);
   }
@@ -170,7 +197,7 @@ class TableLogic {
     state.lastDiscardedBy = null;
     state.lastDiscardedTileId = null;
     state.currentTurn = seat;
-    state.hasDrawnThisTurn = false; // needs replacement draw after kan
+    state.hasDrawnThisTurn = false;
     state.seats[seat].justDrewTileId = null;
     state.addLog(seat, 'openKan', tileId: discardTileId);
   }
@@ -187,7 +214,7 @@ class TableLogic {
     ));
 
     state.seats[seat].justDrewTileId = null;
-    state.hasDrawnThisTurn = false; // needs replacement draw after kan
+    state.hasDrawnThisTurn = false;
     state.addLog(seat, 'closedKan', tileId: tileIds.first);
   }
 
@@ -203,20 +230,19 @@ class TableLogic {
     meld.tileIds.add(tileId);
 
     state.seats[seat].justDrewTileId = null;
-    state.hasDrawnThisTurn = false; // needs replacement draw after kan
+    state.hasDrawnThisTurn = false;
     state.addLog(seat, 'addedKan', tileId: tileId);
   }
 
   /// Declare riichi: permanently set riichi, deduct 1000 pts, discard tile.
   static void riichi(ServerState state, int seat, int tileId) {
     final seatData = state.seats[seat];
-    if (seatData.isRiichi) return; // already riichi
+    if (seatData.isRiichi) return;
 
     seatData.isRiichi = true;
     state.scores[seat] -= 1000;
     state.riichiSticksOnTable += 1;
 
-    // Discard with riichi flag
     final isTsumogiri = seatData.justDrewTileId == tileId;
     seatData.handTileIds.remove(tileId);
     seatData.discards.add(DiscardEntry(
@@ -228,7 +254,7 @@ class TableLogic {
     state.lastDiscardedBy = seat;
     state.lastDiscardedTileId = tileId;
     state.currentTurn = (seat + 1) % 4;
-    state.hasDrawnThisTurn = false; // next player hasn't drawn yet
+    state.hasDrawnThisTurn = false;
     state.addLog(seat, 'riichi', tileId: tileId);
   }
 
@@ -268,11 +294,10 @@ class TableLogic {
   static void confirmWin(ServerState state, int seat) {
     final proposal = state.pendingWin;
     if (proposal == null) return;
-    if (seat == proposal.seatIndex) return; // can't confirm own win
+    if (seat == proposal.seatIndex) return;
 
     proposal.confirmed.add(seat);
 
-    // Need 2 out of 3 other players to confirm
     if (proposal.confirmed.length >= 2) {
       _applyWin(state);
     }
@@ -286,7 +311,6 @@ class TableLogic {
 
     proposal.rejected.add(seat);
 
-    // If 2 reject, cancel the proposal
     if (proposal.rejected.length >= 2) {
       state.addLog(proposal.seatIndex, 'winRejected');
       state.pendingWin = null;
@@ -295,13 +319,10 @@ class TableLogic {
 
   static void _applyWin(ServerState state) {
     final proposal = state.pendingWin!;
-    // Apply score changes
     for (final entry in proposal.payments.entries) {
       state.scores[entry.key] += entry.value;
     }
-    // Clear riichi sticks (winner collected them)
     state.riichiSticksOnTable = 0;
-    // Suggest keep dealer if winner is dealer
     state.suggestKeepDealer = proposal.seatIndex == state.dealerSeat;
     state.addLog(proposal.seatIndex, 'winConfirmed',
         detail: proposal.tierName);
@@ -319,8 +340,8 @@ class TableLogic {
   /// Sort hand tiles by kind.
   static void sortHand(ServerState state, int seat) {
     state.seats[seat].handTileIds.sort((a, b) {
-      final kindA = a ~/ 4;
-      final kindB = b ~/ 4;
+      final kindA = a >= 136 ? a : a ~/ 4;
+      final kindB = b >= 136 ? b : b ~/ 4;
       if (kindA != kindB) return kindA.compareTo(kindB);
       return a.compareTo(b);
     });
@@ -338,13 +359,11 @@ class TableLogic {
   }
 
   /// Undo last discard (return to hand).
-  /// Riichi discards cannot be undone — riichi is irreversible.
   static void undoDiscard(ServerState state, int seat) {
     if (state.lastDiscardedBy != seat) return;
     final seatData = state.seats[seat];
     if (seatData.discards.isEmpty) return;
 
-    // Cannot undo a riichi discard — riichi is permanent
     if (seatData.discards.last.isRiichiDiscard) return;
 
     final lastDiscard = seatData.discards.removeLast();
@@ -352,7 +371,7 @@ class TableLogic {
     state.lastDiscardedBy = null;
     state.lastDiscardedTileId = null;
     state.currentTurn = seat;
-    state.hasDrawnThisTurn = true; // tile is back in hand, already "drawn"
+    state.hasDrawnThisTurn = true;
     state.addLog(seat, 'undoDiscard', tileId: lastDiscard.tileId);
   }
 
@@ -389,7 +408,7 @@ class TableLogic {
   static void exchangeConfirm(ServerState state, int seat) {
     final proposal = state.pendingExchange;
     if (proposal == null) return;
-    if (seat != proposal.toSeat) return; // only target can confirm
+    if (seat != proposal.toSeat) return;
 
     state.scores[proposal.fromSeat] -= proposal.amount;
     state.scores[proposal.toSeat] += proposal.amount;

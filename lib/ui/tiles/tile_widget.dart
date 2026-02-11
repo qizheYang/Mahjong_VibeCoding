@@ -4,6 +4,7 @@ import '../../engine/tile/tile_type.dart';
 import 'tile_size.dart';
 
 /// Renders a single mahjong tile face-up using real tile graphics.
+/// Flower tiles are rendered as colored text on white background.
 class TileWidget extends StatelessWidget {
   final Tile tile;
   final TileSize size;
@@ -20,15 +21,15 @@ class TileWidget extends StatelessWidget {
     this.onTap,
   });
 
-  /// Map a Tile to its asset filename.
-  static String tileAsset(Tile tile) {
+  /// Map a Tile to its asset filename (null for flower tiles).
+  static String? tileAsset(Tile tile) {
+    if (tile.isFlower) return null;
     if (tile.isRedDora) {
-      // Red fives: 0m, 0p, 0s
       final suit = switch (tile.type) {
         TileType.man => 'm',
         TileType.pin => 'p',
         TileType.sou => 's',
-        _ => 'm', // shouldn't happen
+        _ => 'm',
       };
       return 'assets/tiles/0$suit.png';
     }
@@ -43,11 +44,32 @@ class TileWidget extends StatelessWidget {
         return 'assets/tiles/${tile.number}z.png';
       case TileType.dragon:
         return 'assets/tiles/${tile.number + 4}z.png';
+      case TileType.flower:
+        return null;
+    }
+  }
+
+  /// Flower tile text color by group.
+  static Color _flowerColor(Tile tile) {
+    final group = tile.flowerGroup;
+    switch (group) {
+      case 0:
+        return const Color(0xFFE53935); // seasons: red
+      case 1:
+        return const Color(0xFF1E88E5); // plants: blue
+      case 2:
+        return const Color(0xFFFFA000); // auspicious: gold
+      case 3:
+        return const Color(0xFF43A047); // arts: green
+      default:
+        return const Color(0xFF757575);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final asset = tileAsset(tile);
+
     Widget tileWidget = GestureDetector(
       onTap: onTap,
       child: Container(
@@ -68,12 +90,14 @@ class TileWidget extends StatelessWidget {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(size.borderRadius),
-          child: Image.asset(
-            tileAsset(tile),
-            width: size.width,
-            height: size.height,
-            fit: BoxFit.fill,
-          ),
+          child: asset != null
+              ? Image.asset(
+                  asset,
+                  width: size.width,
+                  height: size.height,
+                  fit: BoxFit.fill,
+                )
+              : _buildFlowerTile(),
         ),
       ),
     );
@@ -86,5 +110,30 @@ class TileWidget extends StatelessWidget {
     }
 
     return tileWidget;
+  }
+
+  Widget _buildFlowerTile() {
+    final color = _flowerColor(tile);
+    final label = tile.shortName;
+    final fontSize = size.width * 0.55;
+    return Container(
+      width: size.width,
+      height: size.height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.grey.shade300, width: 0.5),
+      ),
+      child: Center(
+        child: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: fontSize,
+            fontWeight: FontWeight.bold,
+            height: 1.0,
+          ),
+        ),
+      ),
+    );
   }
 }

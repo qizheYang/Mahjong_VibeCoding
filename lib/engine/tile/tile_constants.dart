@@ -4,7 +4,9 @@ class TileConstants {
   TileConstants._();
 
   static const int totalTiles = 136;
+  static const int maxTiles = 152; // with all flower variants
   static const int uniqueKinds = 34;
+  static const int flowerStart = 34; // kind index for first flower
 
   /// IDs of the three red dora tiles (copyIndex 0 of each 5-tile).
   static const Set<int> redDoraIds = {16, 52, 88}; // 5m, 5p, 5s
@@ -31,12 +33,29 @@ class TileConstants {
   /// Green tiles for ryuuiisou: 2s, 3s, 4s, 6s, 8s, hatsu.
   static const List<int> greenKinds = [19, 20, 21, 23, 25, 32];
 
+  /// Flower tile names by index (0-15).
+  static const List<String> flowerNames = [
+    '春', '夏', '秋', '冬', // Seasons
+    '梅', '兰', '竹', '菊', // Plants
+    '福', '禄', '寿', '喜', // Auspicious
+    '琴', '棋', '书', '画', // Four Arts
+  ];
+
+  /// Flower tile English names by index (0-15).
+  static const List<String> flowerNamesEn = [
+    'Spring', 'Summer', 'Autumn', 'Winter',
+    'Plum', 'Orchid', 'Bamboo', 'Chrysan.',
+    'Fortune', 'Prosper.', 'Longev.', 'Joy',
+    'Zither', 'Chess', 'Book', 'Painting',
+  ];
+
   static TileType typeOf(int kind) {
     if (kind < 9) return TileType.man;
     if (kind < 18) return TileType.pin;
     if (kind < 27) return TileType.sou;
     if (kind < 31) return TileType.wind;
-    return TileType.dragon;
+    if (kind < 34) return TileType.dragon;
+    return TileType.flower;
   }
 
   /// Face number: 1-9 for suited, 1-4 for winds, 1-3 for dragons.
@@ -52,7 +71,9 @@ class TileConstants {
     return n == 0 || n == 8;
   }
 
-  static bool isHonor(int kind) => kind >= 27;
+  static bool isHonor(int kind) => kind >= 27 && kind < 34;
+
+  static bool isFlower(int kind) => kind >= 34;
 
   static bool isTerminalOrHonor(int kind) => isTerminal(kind) || isHonor(kind);
 
