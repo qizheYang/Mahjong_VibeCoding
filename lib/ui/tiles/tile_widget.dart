@@ -74,9 +74,9 @@ class TileWidget extends StatelessWidget {
       case 1:
         return const Color(0xFF1E88E5); // plants: blue
       case 2:
-        return const Color(0xFFFFA000); // auspicious: gold
+        return const Color(0xFFFF6F00); // 百搭: orange
       case 3:
-        return const Color(0xFF43A047); // arts: green
+        return const Color(0xFF43A047); // suzhou specials: green
       default:
         return const Color(0xFF757575);
     }

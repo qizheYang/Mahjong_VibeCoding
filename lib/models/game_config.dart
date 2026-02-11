@@ -77,8 +77,15 @@ class GameConfig {
     }
   }
 
+  /// Whether this is Suzhou mahjong (152 tiles, no chi, 百搭).
+  bool get isSuzhou => tileCount == 152;
+
   /// Check if a tile ID represents a flower in this config.
+  /// In Suzhou, 百搭 tiles (144-147) stay in hand as wild cards.
   bool isFlowerTile(int tileId) {
+    if (tileCount == 152) {
+      return (tileId >= 136 && tileId < 144) || tileId >= 148;
+    }
     return tileId >= 136;
   }
 

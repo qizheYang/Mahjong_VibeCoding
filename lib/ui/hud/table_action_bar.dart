@@ -60,7 +60,7 @@ class TableActionBar extends StatelessWidget {
       playActions
           .add(_actionBtn(tr('discard', lang), 'discard', Colors.orange));
     }
-    if (canChi && !tableState.config.isSichuan) {
+    if (canChi && !tableState.config.isSichuan && !tableState.config.isSuzhou) {
       playActions.add(_callBtn(tr('chi', lang), 'chi', Colors.green));
     }
     if (canCallOther) {

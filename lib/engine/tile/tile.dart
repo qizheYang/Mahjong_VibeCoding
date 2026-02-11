@@ -13,7 +13,8 @@ import 'tile_constants.dart';
 ///   kinds 27-30: East, South, West, North winds
 ///   kinds 31-33: Haku, Hatsu, Chun dragons
 ///   kinds 34-41: 春夏秋冬梅兰竹菊 (season/plant flowers)
-///   kinds 42-49: 福禄寿喜琴棋书画 (extra flowers)
+///   kinds 42-45: 百搭 (Suzhou joker/wild, stay in hand)
+///   kinds 46-49: 鼠财猫宝 (Suzhou special flowers)
 class Tile {
   final int id;
 
@@ -57,11 +58,14 @@ class Tile {
   }
 
   /// Flower group: 0=seasons(春夏秋冬), 1=plants(梅兰竹菊),
-  /// 2=auspicious(福禄寿喜), 3=arts(琴棋书画).
+  /// 2=joker(百搭), 3=suzhou specials(鼠财猫宝).
   int get flowerGroup {
     assert(isFlower);
     return (id - 136) ~/ 4;
   }
+
+  /// Whether this is a 百搭 (joker/wild card) tile. IDs 144-147.
+  bool get isBaida => id >= 144 && id <= 147;
 
   /// Short string like "1m", "5p", "East", "Chun", "春".
   String get shortName {

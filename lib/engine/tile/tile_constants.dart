@@ -33,20 +33,23 @@ class TileConstants {
   /// Green tiles for ryuuiisou: 2s, 3s, 4s, 6s, 8s, hatsu.
   static const List<int> greenKinds = [19, 20, 21, 23, 25, 32];
 
-  /// Flower tile names by index (0-15).
+  /// Flower/special tile names by index (0-15).
+  /// 0-7: Standard flowers (春夏秋冬梅兰竹菊).
+  /// 8-11: 百搭 (Suzhou joker/wild cards, stay in hand).
+  /// 12-15: Suzhou special flowers (老鼠, 财神, 猫, 聚宝盆).
   static const List<String> flowerNames = [
     '春', '夏', '秋', '冬', // Seasons
     '梅', '兰', '竹', '菊', // Plants
-    '福', '禄', '寿', '喜', // Auspicious
-    '琴', '棋', '书', '画', // Four Arts
+    '百搭', '百搭', '百搭', '百搭', // Suzhou joker/wild
+    '鼠', '财', '猫', '宝', // Suzhou specials
   ];
 
-  /// Flower tile English names by index (0-15).
+  /// Flower/special tile English names by index (0-15).
   static const List<String> flowerNamesEn = [
     'Spring', 'Summer', 'Autumn', 'Winter',
     'Plum', 'Orchid', 'Bamboo', 'Chrysan.',
-    'Fortune', 'Prosper.', 'Longev.', 'Joy',
-    'Zither', 'Chess', 'Book', 'Painting',
+    'Joker', 'Joker', 'Joker', 'Joker',
+    'Rat', 'Fortune', 'Cat', 'Treasure',
   ];
 
   static TileType typeOf(int kind) {

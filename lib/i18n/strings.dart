@@ -196,9 +196,9 @@ const Map<String, Map<Lang, String>> _strings = {
     Lang.ja: '蘇州麻雀',
   },
   'suzhouDesc': {
-    Lang.zh: '152张(含16张花牌)',
-    Lang.en: '152 tiles (16 flowers)',
-    Lang.ja: '152枚(花牌16枚)',
+    Lang.zh: '152张, 百搭, 无吃, 只碰杠',
+    Lang.en: '152 tiles, joker, no chi',
+    Lang.ja: '152枚, 百搭, チーなし',
   },
   'flowers': {Lang.zh: '花', Lang.en: 'Flowers', Lang.ja: '花'},
   'gameConfig': {
