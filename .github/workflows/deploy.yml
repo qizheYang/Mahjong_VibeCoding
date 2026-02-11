@@ -17,7 +17,12 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
       - name: Build web app
-        run: flutter build web --base-href "/mahjong/" --release
+        run: |
+          BUILD_VERSION=$(git rev-parse --short HEAD)
+          BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M UTC')
+          flutter build web --base-href "/mahjong/" --release \
+            --dart-define=BUILD_VERSION=$BUILD_VERSION \
+            --dart-define=BUILD_TIME="$BUILD_TIME"
       - name: Checkout target repo
         uses: actions/checkout@v4
         with:

@@ -8,6 +8,12 @@ import 'lobby_screen.dart';
 /// Server URL — change for production deployment.
 const _serverUrl = 'wss://rehydratedwater.com/mahjong-ws';
 
+/// Build info injected via --dart-define at compile time.
+const _buildVersion =
+    String.fromEnvironment('BUILD_VERSION', defaultValue: 'dev');
+const _buildTime =
+    String.fromEnvironment('BUILD_TIME', defaultValue: '');
+
 class TitleScreen extends ConsumerStatefulWidget {
   const TitleScreen({super.key});
 
@@ -175,6 +181,18 @@ class _TitleScreenState extends ConsumerState<TitleScreen> {
                             color: Colors.redAccent, fontSize: 12),
                       ),
                     ),
+
+                  // Build version
+                  const SizedBox(height: 32),
+                  Text(
+                    _buildTime.isEmpty
+                        ? 'build: $_buildVersion'
+                        : 'build: $_buildVersion · $_buildTime',
+                    style: const TextStyle(
+                      color: Colors.white24,
+                      fontSize: 11,
+                    ),
+                  ),
                 ],
               ),
             ),
