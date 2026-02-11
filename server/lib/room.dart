@@ -255,14 +255,46 @@ class Room {
     // Hold active → don't schedule draw/pon actions
     if (_holdActive) return;
 
-    // Before draw (after discard) → 5s delay for calls
+    // Before draw (after discard)
     if (!_state.hasDrawnThisTurn) {
-      _aiTimer = Timer(const Duration(seconds: 5), _processAiTurn);
+      final currentSeat = _state.currentTurn;
+      if (_aiSeats[currentSeat]) {
+        // AI's turn to draw — only wait if a human has pon/kan opportunity
+        if (_anyHumanCanCall()) {
+          _aiTimer = Timer(const Duration(seconds: 5), _processAiTurn);
+        } else {
+          _aiTimer =
+              Timer(const Duration(milliseconds: 800), _processAiTurn);
+        }
+      } else {
+        // Human's turn — AI checks pon quickly
+        _aiTimer = Timer(const Duration(milliseconds: 500), _processAiTurn);
+      }
       return;
     }
 
     // Already drawn → discard after brief delay
-    _aiTimer = Timer(const Duration(milliseconds: 800), _processAiTurn);
+    _aiTimer = Timer(const Duration(milliseconds: 600), _processAiTurn);
+  }
+
+  /// Check if any human player can pon/kan the last discarded tile.
+  bool _anyHumanCanCall() {
+    final lastDiscard = _state.lastDiscardedTileId;
+    final lastDiscardedBy = _state.lastDiscardedBy;
+    if (lastDiscard == null || lastDiscardedBy == null) return false;
+
+    final discardKind = lastDiscard ~/ 4;
+    for (int i = 0; i < 4; i++) {
+      if (_aiSeats[i]) continue;
+      if (_sockets[i] == null) continue;
+      if (i == lastDiscardedBy) continue;
+
+      final count = _state.seats[i].handTileIds
+          .where((id) => id ~/ 4 == discardKind)
+          .length;
+      if (count >= 2) return true;
+    }
+    return false;
   }
 
   void _processAiTurn() {
