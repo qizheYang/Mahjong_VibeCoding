@@ -621,6 +621,8 @@ class _TableScreenState extends ConsumerState<TableScreen> {
   /// Auto-draw prompt: shows countdown + Draw button + optional Pon/Chi.
   Widget _buildDrawPrompt(Lang lang, int? holdSeat) {
     final isPaused = holdSeat != null;
+    final mandatoryWait =
+        ref.read(tableStateProvider)?.config.mandatoryDrawWait ?? false;
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -639,10 +641,10 @@ class _TableScreenState extends ConsumerState<TableScreen> {
               label: isPaused
                   ? '${tr('draw', lang)} ⏸'
                   : '${tr('draw', lang)} ($_drawCountdown)',
-              colors: isPaused
+              colors: (isPaused || mandatoryWait)
                   ? const [Color(0xFF5A5A6A), Color(0xFF3A3A4A)]
                   : const [Color(0xFF1565C0), Color(0xFF0D47A1)],
-              onTap: _drawNow,
+              onTap: mandatoryWait ? () {} : _drawNow,
             ),
             if (_drawPromptCanChi) ...[
               const SizedBox(width: 10),

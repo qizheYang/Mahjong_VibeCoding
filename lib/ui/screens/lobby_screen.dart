@@ -341,6 +341,7 @@ class _GameConfigPanelState extends ConsumerState<_GameConfigPanel> {
       noAkaDora: v.isRiichi ? old.noAkaDora : false,
       noUraDora: v.isRiichi ? old.noUraDora : false,
       noIppatsu: v.isRiichi ? old.noIppatsu : false,
+      mandatoryDrawWait: v.isRiichi ? old.mandatoryDrawWait : false,
       aiSeats: v.tileCount == 108 ? old.aiSeats : const [false, false, false, false],
     );
     if (!_customPoints) {
@@ -354,6 +355,7 @@ class _GameConfigPanelState extends ConsumerState<_GameConfigPanel> {
     bool? noAkaDora,
     bool? noUraDora,
     bool? noIppatsu,
+    bool? mandatoryDrawWait,
     List<bool>? aiSeats,
   }) {
     final c = ref.read(gameConfigProvider);
@@ -367,6 +369,7 @@ class _GameConfigPanelState extends ConsumerState<_GameConfigPanel> {
       noAkaDora: noAkaDora ?? c.noAkaDora,
       noUraDora: noUraDora ?? c.noUraDora,
       noIppatsu: noIppatsu ?? c.noIppatsu,
+      mandatoryDrawWait: mandatoryDrawWait ?? c.mandatoryDrawWait,
       aiSeats: aiSeats ?? c.aiSeats,
     );
   }
@@ -385,6 +388,7 @@ class _GameConfigPanelState extends ConsumerState<_GameConfigPanel> {
       noAkaDora: config.noAkaDora,
       noUraDora: config.noUraDora,
       noIppatsu: config.noIppatsu,
+      mandatoryDrawWait: config.mandatoryDrawWait,
       aiSeats: config.aiSeats,
     );
   }
@@ -650,6 +654,9 @@ class _GameConfigPanelState extends ConsumerState<_GameConfigPanel> {
           modeRadio('free', 'freeMode', 'freeModeDesc'),
           modeRadio('auto', 'autoMode', 'autoModeDesc', enabled: false),
           modeRadio('custom', 'customMode', 'customModeDesc'),
+          const SizedBox(height: 4),
+          toggleRow('mandatoryDrawWait', config.mandatoryDrawWait,
+              (v) => _updateConfig(mandatoryDrawWait: v)),
           if (mode == 'custom') ...[
             const SizedBox(height: 4),
             toggleRow('noKanDora', config.noKanDora,

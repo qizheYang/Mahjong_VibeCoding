@@ -18,6 +18,7 @@ class Room {
   int _hostSeat = 0;
   List<bool> _aiSeats = [false, false, false, false];
   Timer? _aiTimer;
+  bool _holdActive = false;
 
   Room(this.code);
 
@@ -182,10 +183,14 @@ class Room {
         _broadcastObjection(seat, msg['message'] as String? ?? '');
         return; // don't broadcast state for objection
       case 'hold':
+        _holdActive = true;
+        _aiTimer?.cancel();
         _broadcast({'type': 'hold', 'seat': seat});
         return;
       case 'releaseHold':
+        _holdActive = false;
         _broadcast({'type': 'releaseHold', 'seat': seat});
+        _scheduleAi();
         return;
       case 'exchangePropose':
         TableLogic.exchangePropose(
@@ -218,6 +223,7 @@ class Room {
         return;
     }
 
+    _holdActive = false;
     _broadcastState();
     _scheduleAi();
   }
@@ -229,16 +235,40 @@ class Room {
     if (!_aiSeats.any((a) => a)) return;
     if (!_state.gameStarted) return;
 
-    _aiTimer = Timer(const Duration(milliseconds: 800), () {
-      _processAiTurn();
-    });
+    // Pending win → fast response
+    if (_state.pendingWin != null) {
+      _aiTimer = Timer(const Duration(milliseconds: 500), _processAiTurn);
+      return;
+    }
+
+    // Missing suit choices → fast
+    if (_state.config.isSichuan) {
+      for (int i = 0; i < 4; i++) {
+        if (_aiSeats[i] && _state.seats[i].missingSuit == null) {
+          _aiTimer =
+              Timer(const Duration(milliseconds: 500), _processAiTurn);
+          return;
+        }
+      }
+    }
+
+    // Hold active → don't schedule draw/pon actions
+    if (_holdActive) return;
+
+    // Before draw (after discard) → 5s delay for calls
+    if (!_state.hasDrawnThisTurn) {
+      _aiTimer = Timer(const Duration(seconds: 5), _processAiTurn);
+      return;
+    }
+
+    // Already drawn → discard after brief delay
+    _aiTimer = Timer(const Duration(milliseconds: 800), _processAiTurn);
   }
 
   void _processAiTurn() {
     if (!_state.gameStarted) return;
-    if (_state.liveTileIds.isEmpty) return;
 
-    // If there's a pending win proposal, AI auto-confirms
+    // Pending win → AI auto-confirms (regardless of wall state)
     if (_state.pendingWin != null) {
       for (int i = 0; i < 4; i++) {
         if (_aiSeats[i] &&
@@ -252,6 +282,8 @@ class Room {
       _scheduleAi();
       return;
     }
+
+    if (_state.liveTileIds.isEmpty) return;
 
     // Check if any AI needs to choose missing suit
     for (int i = 0; i < 4; i++) {

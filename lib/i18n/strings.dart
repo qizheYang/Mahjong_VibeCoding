@@ -250,6 +250,11 @@ const Map<String, Map<Lang, String>> _strings = {
   'noAkaDora': {Lang.zh: '无赤宝牌', Lang.en: 'No Red Fives', Lang.ja: '赤ドラなし'},
   'noUraDora': {Lang.zh: '无里宝牌', Lang.en: 'No Ura Dora', Lang.ja: '裏ドラなし'},
   'noIppatsu': {Lang.zh: '无一发', Lang.en: 'No Ippatsu', Lang.ja: '一発なし'},
+  'mandatoryDrawWait': {
+    Lang.zh: '强制等待摸牌',
+    Lang.en: 'Mandatory Draw Wait',
+    Lang.ja: '強制ツモ待ち',
+  },
 
   // AI players
   'aiPlayer': {Lang.zh: 'AI玩家', Lang.en: 'AI Player', Lang.ja: 'AIプレイヤー'},

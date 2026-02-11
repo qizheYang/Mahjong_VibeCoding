@@ -20,6 +20,9 @@ class GameConfig {
   final bool noUraDora;
   final bool noIppatsu;
 
+  // Riichi mandatory 5s draw wait
+  final bool mandatoryDrawWait;
+
   // AI player seats (index 0 = host, always false)
   final List<bool> aiSeats;
 
@@ -33,6 +36,7 @@ class GameConfig {
     this.noAkaDora = false,
     this.noUraDora = false,
     this.noIppatsu = false,
+    this.mandatoryDrawWait = false,
     this.aiSeats = const [false, false, false, false],
   });
 
@@ -126,6 +130,7 @@ class GameConfig {
         'noAkaDora': noAkaDora,
         'noUraDora': noUraDora,
         'noIppatsu': noIppatsu,
+        'mandatoryDrawWait': mandatoryDrawWait,
         'aiSeats': aiSeats,
       };
 
@@ -140,6 +145,7 @@ class GameConfig {
       noAkaDora: json['noAkaDora'] as bool? ?? false,
       noUraDora: json['noUraDora'] as bool? ?? false,
       noIppatsu: json['noIppatsu'] as bool? ?? false,
+      mandatoryDrawWait: json['mandatoryDrawWait'] as bool? ?? false,
       aiSeats: (json['aiSeats'] as List<dynamic>?)
               ?.map((e) => e as bool)
               .toList() ??
