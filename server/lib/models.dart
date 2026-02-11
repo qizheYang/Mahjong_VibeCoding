@@ -95,6 +95,7 @@ class SeatData {
   bool handRevealed = false;
   int? justDrewTileId;
   List<int> flowerTileIds = []; // face-up flower tiles
+  int? missingSuit; // 0=man, 1=pin, 2=sou (Sichuan 缺一门)
 
   Map<String, dynamic> toJson({required bool isViewer}) {
     final showHand = isViewer || handRevealed;
@@ -108,6 +109,7 @@ class SeatData {
       if (isViewer && justDrewTileId != null)
         'justDrewTileId': justDrewTileId,
       'flowerTileIds': flowerTileIds,
+      if (missingSuit != null) 'missingSuit': missingSuit,
     };
   }
 
@@ -119,6 +121,7 @@ class SeatData {
     handRevealed = false;
     justDrewTileId = null;
     flowerTileIds.clear();
+    missingSuit = null;
   }
 }
 

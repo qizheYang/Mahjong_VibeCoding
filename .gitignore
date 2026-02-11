@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Compiled server binary
+server/bin/mahjong_server
+
+# Screenshots / temp images
+*.png
+!assets/**/*.png
+!web/**/*.png

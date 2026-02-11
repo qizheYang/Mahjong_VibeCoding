@@ -337,6 +337,14 @@ class TableLogic {
     }
   }
 
+  /// Choose missing suit for Sichuan mode (缺一门).
+  static void chooseMissingSuit(ServerState state, int seat, int suit) {
+    if (suit < 0 || suit > 2) return;
+    state.seats[seat].missingSuit = suit;
+    final suitNames = ['万', '筒', '索'];
+    state.addLog(seat, 'chooseMissingSuit', detail: '缺${suitNames[suit]}');
+  }
+
   /// Sort hand tiles by kind.
   static void sortHand(ServerState state, int seat) {
     state.seats[seat].handTileIds.sort((a, b) {

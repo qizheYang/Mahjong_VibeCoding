@@ -169,6 +169,8 @@ class Room {
             _state, msg['targetSeat'] as int, msg['amount'] as int);
       case 'drawFlower':
         TableLogic.drawFlower(_state, seat, msg['tileId'] as int);
+      case 'chooseMissingSuit':
+        TableLogic.chooseMissingSuit(_state, seat, msg['suit'] as int);
       default:
         return;
     }

@@ -8,6 +8,10 @@ import 'lobby_screen.dart';
 /// Server URL — change for production deployment.
 const _serverUrl = 'wss://rehydratedwater.com/mahjong-ws';
 
+/// Application version.
+const _appVersion = '1.0.0.0';
+const _codename = 'Sake';
+
 /// Build info injected via --dart-define at compile time.
 const _buildVersion =
     String.fromEnvironment('BUILD_VERSION', defaultValue: 'dev');
@@ -184,6 +188,14 @@ class _TitleScreenState extends ConsumerState<TitleScreen> {
 
                   // Build version
                   const SizedBox(height: 32),
+                  Text(
+                    'v$_appVersion "$_codename"',
+                    style: const TextStyle(
+                      color: Colors.white30,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
                   Text(
                     _buildTime.isEmpty
                         ? 'build: $_buildVersion'

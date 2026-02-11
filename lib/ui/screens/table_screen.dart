@@ -13,6 +13,7 @@ import '../hud/table_action_bar.dart';
 import '../dialogs/win_declaration_dialog.dart';
 import '../dialogs/exchange_dialog.dart';
 import '../dialogs/objection_banner.dart';
+import '../dialogs/suit_selection_overlay.dart';
 
 class TableScreen extends ConsumerStatefulWidget {
   const TableScreen({super.key});
@@ -122,6 +123,30 @@ class _TableScreenState extends ConsumerState<TableScreen> {
                   onAutoDiscardChanged: (v) =>
                       ref.read(autoDiscardProvider.notifier).state = v,
                 ),
+
+                // Sichuan suit selection overlay (缺一门)
+                if (tableState.config.isSichuan &&
+                    tableState.gameStarted &&
+                    tableState.seats
+                        .any((s) => s.missingSuit == null))
+                  Positioned.fill(
+                    child: SuitSelectionOverlay(
+                      lang: lang,
+                      allMissingSuits: tableState.seats
+                          .map((s) => s.missingSuit)
+                          .toList(),
+                      nicknames: tableState.nicknames,
+                      mySeat: mySeat,
+                      alreadyChosen:
+                          tableState.seats[mySeat].missingSuit != null,
+                      onChoose: (suit) {
+                        ref
+                            .read(multiplayerProvider.notifier)
+                            .sendAction(
+                                TableAction.chooseMissingSuit(suit));
+                      },
+                    ),
+                  ),
 
                 // Win proposal overlay
                 if (tableState.pendingWin != null)

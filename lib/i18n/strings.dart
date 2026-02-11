@@ -195,6 +195,22 @@ const Map<String, Map<Lang, String>> _strings = {
     Lang.ja: 'ゲーム設定',
   },
 
+  // Sichuan 缺一门
+  'chooseMissingSuit': {
+    Lang.zh: '选缺',
+    Lang.en: 'Choose Missing Suit',
+    Lang.ja: '不要スーツ選択',
+  },
+  'waitingForSuitChoice': {
+    Lang.zh: '等待选缺...',
+    Lang.en: 'Waiting for suit choice...',
+    Lang.ja: '不要スーツ選択待ち...',
+  },
+  'suitMan': {Lang.zh: '万', Lang.en: 'Wan', Lang.ja: '万'},
+  'suitPin': {Lang.zh: '筒', Lang.en: 'Pin', Lang.ja: '筒'},
+  'suitSou': {Lang.zh: '索', Lang.en: 'Sou', Lang.ja: '索'},
+  'missingSuitPrefix': {Lang.zh: '缺', Lang.en: '~', Lang.ja: '缺'},
+
   // Misc
   'connecting': {
     Lang.zh: '连接中...',

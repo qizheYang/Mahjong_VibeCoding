@@ -16,6 +16,7 @@ class GameConfig {
     this.startingPoints = 25000,
   });
 
+  bool get isSichuan => tileCount == 108;
   bool get hasFlowers => tileCount >= 144;
   bool get hasDora => isRiichi && tileCount == 136;
   bool get dragonsAreFlowers => tileCount == 152;

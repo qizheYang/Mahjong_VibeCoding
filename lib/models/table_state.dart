@@ -111,6 +111,7 @@ class SeatState {
   final bool handRevealed;
   final int? justDrewTileId;
   final List<int> flowerTileIds; // face-up flower tiles
+  final int? missingSuit; // 0=man, 1=pin, 2=sou (Sichuan 缺一门)
 
   const SeatState({
     this.handTileIds,
@@ -121,6 +122,7 @@ class SeatState {
     required this.handRevealed,
     this.justDrewTileId,
     this.flowerTileIds = const [],
+    this.missingSuit,
   });
 
   factory SeatState.fromJson(Map<String, dynamic> json) {
@@ -140,6 +142,7 @@ class SeatState {
       justDrewTileId: json['justDrewTileId'] as int?,
       flowerTileIds:
           (json['flowerTileIds'] as List?)?.cast<int>() ?? const [],
+      missingSuit: json['missingSuit'] as int?,
     );
   }
 

@@ -16,6 +16,9 @@ class GameConfig {
     this.startingPoints = 25000,
   });
 
+  /// Whether this is Sichuan mahjong (108 tiles, 缺一门).
+  bool get isSichuan => tileCount == 108;
+
   /// Whether this variant includes flower tiles (144, 152).
   bool get hasFlowers => tileCount >= 144;
 

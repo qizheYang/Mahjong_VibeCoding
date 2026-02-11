@@ -67,6 +67,10 @@ class TableAction {
   static String drawFlower(int tileId) =>
       _encode('drawFlower', {'tileId': tileId});
 
+  /// Choose missing suit for Sichuan mode (缺一门).
+  static String chooseMissingSuit(int suit) =>
+      _encode('chooseMissingSuit', {'suit': suit});
+
   static String _encode(String action, [Map<String, dynamic>? extra]) {
     final msg = <String, dynamic>{
       'type': 'action',

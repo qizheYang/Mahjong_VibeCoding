@@ -269,39 +269,70 @@ class MultiplayerTableView extends StatelessWidget {
     final score = tableState.scores[seatIndex];
     final isCurrent = seatIndex == tableState.currentTurn;
     final color = isCurrent ? Colors.amber : Colors.white54;
-    final text = Text(
-      '$wind $score',
-      style: TextStyle(
-        color: color,
-        fontSize: 9,
-        fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-      ),
+    final missingSuit = tableState.seats[seatIndex].missingSuit;
+
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$wind $score',
+          style: TextStyle(
+            color: color,
+            fontSize: 9,
+            fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        if (missingSuit != null && tableState.config.isSichuan)
+          _missingSuitBadge(missingSuit),
+      ],
     );
 
     switch (relativePos) {
       case 0:
         return Positioned(
           bottom: 2, left: 0, right: 0,
-          child: Center(child: text),
+          child: Center(child: content),
         );
       case 2:
         return Positioned(
           top: 2, left: 0, right: 0,
-          child: Center(child: text),
+          child: Center(child: content),
         );
       case 3:
         return Positioned(
           left: 2, top: 22, bottom: 22,
-          child: Center(child: RotatedBox(quarterTurns: 1, child: text)),
+          child: Center(
+              child: RotatedBox(quarterTurns: 1, child: content)),
         );
       case 1:
         return Positioned(
           right: 2, top: 22, bottom: 22,
-          child: Center(child: RotatedBox(quarterTurns: 3, child: text)),
+          child: Center(
+              child: RotatedBox(quarterTurns: 3, child: content)),
         );
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  Widget _missingSuitBadge(int suit) {
+    final suitLabels = [
+      tr('suitMan', lang),
+      tr('suitPin', lang),
+      tr('suitSou', lang),
+    ];
+    final suitColors = [Colors.red, Colors.blue, Colors.green];
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+      decoration: BoxDecoration(
+        color: suitColors[suit].withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(2),
+      ),
+      child: Text(
+        '${tr("missingSuitPrefix", lang)}${suitLabels[suit]}',
+        style: const TextStyle(color: Colors.white, fontSize: 7),
+      ),
+    );
   }
 
   Widget _currentTurnHighlight(int relativePos) {
